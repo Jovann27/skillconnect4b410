@@ -38,11 +38,11 @@ const Navbar = () => {
             <Link to="/" onClick={() => setShow(false)}>HOME</Link>
           </li>
           <li>
-            <Link to="/service/getall" onClick={() => setShow(false)}>ALL SERVICE</Link>
+            <Link to="/service/getall" onClick={() => setShow(false)}>JOB OFFERS</Link>
           </li>
           <li>
             <Link to="/applications/me" onClick={() => setShow(false)}>
-              {user?.role === "Service Provider" ? "MY APPLICATIONS" : "APPLICANT'S APPLICATIONS"}
+              {user?.role === "Service Provider" ? "MY APPLICATIONS" : "SERVICES"}
             </Link>
           </li>
           {user?.role === "Service Provider" && (
