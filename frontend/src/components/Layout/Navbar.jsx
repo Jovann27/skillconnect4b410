@@ -29,10 +29,13 @@ const Navbar = () => {
   return (
     <nav className={isAuthorized ? "navbarShow" : "navbarHide"}>
       <div className="container">
-        <div className="logo">
-          <img src="/JobZee-logos__white.png" alt="logo" />
+        <div className="logo_container">
+          <div className="logo">
+          <img src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png" alt="1000205778-removebg-preview" />
+          </div>
+          <div className="title">Skillconnect4B410</div>
         </div>
-        <div className="sysname">Skillconnect4B410</div>
+        
         <ul className={!show ? "menu" : "show-menu menu"}>
           <li>
             <Link to="/" onClick={() => setShow(false)}>HOME</Link>

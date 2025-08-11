@@ -14,7 +14,7 @@ const Footer = () => {
           <FaFacebookF />
         </Link>
         
-        <Link to={"https://www.instagram.com/z_4_zeeshuuu/"} target="_blank">
+        <Link to={"https://www.instagram.com/toastedlumpia/"} target="_blank">
           <RiInstagramFill />
         </Link>
       </div>

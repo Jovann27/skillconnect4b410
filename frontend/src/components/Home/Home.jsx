@@ -1,11 +1,10 @@
-import React from "react";
+import "./home.css";
 import { useContext } from "react";
 import { Context } from "../../main";
 import { Navigate } from "react-router-dom";
 import HeroSection from "./HeroSection";
 import HowItWorks from "./HowItWorks";
-import PopularCategory from "./PopularCategory";
-import PopularServices from "./PopularServices";
+import Mission from "./Mission";
 
 const Home = () => {
   const { isAuthorized } = useContext(Context);
@@ -16,9 +15,8 @@ const Home = () => {
     <>
       <section className="homePage page">
         <HeroSection />
+        <Mission />
         <HowItWorks />
-        <PopularCategory />
-        <PopularServices />
       </section>
     </>
   );

@@ -1,17 +1,40 @@
+body {
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(to bottom, rgb(255, 77, 128), rgb(255, 153, 170));
+  background-attachment: fixed;
+}
+
 nav {
   background: #ffffff;
   opacity: 2;
 }
+
 nav .container {
+  padding-left: 50px;
+  padding-right: 50px;
   max-width: 1500px;
   min-width: 1500px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
 }
+
+nav .container .logo_container {
+  display: flex;
+}
+
+nav .container .logo_container .title {
+  display: flex;
+  margin: auto;
+  font-weight: bold;
+  font-size: 20px;
+  font-family: 'Times New Roman', Times;
+}
+
 nav .container .logo {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
 }
 nav .container .logo img {
   width: 100%;
@@ -140,4 +163,52 @@ nav .hamburger {
   nav .menu {
     width: 100%;
   }
+}
+
+
+
+.footerShow {
+  background: #18191c;
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 80px 5px 80px;
+  align-items: center;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+.footerShow div {
+  display: flex;
+  gap: 12px;
+  font-size: 16px;
+  color: #f1f3f6;
+}
+.footerShow div a {
+  font-size: 20px;
+  text-decoration: none;
+  color: #f1f3f6;
+}
+.footerShow div a:hover {
+  color: #2d5649;
+  transform: scale(1.2);
+  transition: all 0.3s;
+}
+.footerHide {
+  display: none;
+}
+@media (max-width: 830px) {
+  .footerShow {
+    padding: 25px 45px;
+  }
+}
+@media (max-width: 550px) {
+  .footerShow {
+    flex-direction: column-reverse;
+    gap: 25px;
+    text-align: center;
+  }
+}
+.navbarHide {
+  display: none;
 }
