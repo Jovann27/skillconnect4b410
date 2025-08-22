@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import React, { useContext, useState } from "react";
 import { FaRegUser } from "react-icons/fa";
 import { MdOutlineMailOutline } from "react-icons/md";
 import { RiLock2Fill } from "react-icons/ri";
@@ -9,10 +9,10 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { Context } from "../../main";
 
-
 const Register = () => {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [firstname, setFirstname] = useState("");
+  const [lastname, setLastname] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
@@ -24,7 +24,7 @@ const Register = () => {
     try {
       const { data } = await axios.post(
         "http://localhost:4000/api/v1/user/register",
-        { name, phone, email, role, password },
+        { firstname, phone, email, role, password },
         {
           headers: {
             "Content-Type": "application/json",
@@ -33,7 +33,8 @@ const Register = () => {
         }
       );
       toast.success(data.message);
-      setName("");
+      setFirstname("");
+      setLastname("");
       setEmail("");
       setPassword("");
       setPhone("");
@@ -63,19 +64,31 @@ const Register = () => {
               <div>
                 <select value={role} onChange={(e) => setRole(e.target.value)}>
                   <option value="">Select Role</option>
-                  <option value="Service Seeker">Service Seeker</option>
-                  <option value="Service Provider">Service Provider</option>
+                  <option value="Employer">Employer</option>
+                  <option value="Job Seeker">Job Seeker</option>
                 </select>
                 <FaRegUser />
               </div>
             </div>
             <div className="inputTag">
-              <label>Name</label>
+              <label>First Name</label>
               <div>
                 <input
                   type="text"
                   placeholder="Zeeshan"
-                  value={name}
+                  value={firstname}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <FaPencilAlt />
+              </div>
+            </div>
+            <div className="inputTag">
+              <label>Last Name</label>
+              <div>
+                <input
+                  type="text"
+                  placeholder="Zeeshan"
+                  value={lastname}
                   onChange={(e) => setName(e.target.value)}
                 />
                 <FaPencilAlt />
