@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema({
     validate: [validator.isEmail, "Please enter a valid email"],
   },
   phone: {
-    type: String, // string to allow +63, dashes, etc.
+    type: String,
     required: [true, "Please enter your phone number"],
   },
   otherContact: {
@@ -58,10 +58,10 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   skills: {
-    type: [String], // array of skills (max 2 enforced in frontend)
+    type: [String], // max 2 enforced
     validate: {
       validator: function (v) {
-        return v.length <= 2; // enforce max 2 skills
+        return v.length <= 2;
       },
       message: "You can select up to 2 skills only",
     },
@@ -70,11 +70,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
   certificates: {
-    type: String, // file path or URL
-    default: "",
+    type: [String], // ✅ FIXED: array of strings
+    default: [],
   },
   validId: {
-    type: String, // file path or URL
+    type: String,
     required: [true, "Please upload a valid ID"],
   },
   password: {
@@ -86,7 +86,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     required: [true, "Please enter your role"],
-    enum: ["Service Provider", "Business Owner", "Community Member"],
+    enum: ["Service Provider", "Business Owner", "Community Member"], // ✅ FIXED: no "Job Seeker"
   },
   createdAt: {
     type: Date,
@@ -114,5 +114,4 @@ userSchema.methods.getJWTToken = function () {
 };
 
 const User = mongoose.model("User", userSchema);
-
 export default User;

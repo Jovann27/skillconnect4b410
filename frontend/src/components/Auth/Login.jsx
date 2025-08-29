@@ -1,19 +1,23 @@
-import { useContext, useState } from "react";
-import { MdOutlineMailOutline } from "react-icons/md";
-import { RiLock2Fill } from "react-icons/ri";
-import { Link, Navigate } from "react-router-dom";
-import { FaRegUser } from "react-icons/fa";
+import { useContext, useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { Context } from "../../main";
-import "./auth.css"
+import "./auth.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
 
-  const { isAuthorized, setIsAuthorized } = useContext(Context);
+  const { isAuthorized, setIsAuthorized, setUser } = useContext(Context);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthorized) {
+      navigate("/home"); // ✅ FIXED: don’t use "/home.jsx"
+    }
+  }, [isAuthorized, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,81 +26,70 @@ const Login = () => {
         "http://localhost:4000/api/v1/user/login",
         { email, password, role },
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           withCredentials: true,
         }
       );
+
       toast.success(data.message);
+      setUser(data.user);
+      setIsAuthorized(true);
+
       setEmail("");
       setPassword("");
       setRole("");
-      setIsAuthorized(true);
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Login failed");
     }
   };
 
-  if(isAuthorized){
-    return <Navigate to={'/'}/>
-  }
-
   return (
-    <>
-      <section className="authPage">
-        <div className="container">
-          <div className="header">
-            <img src="/JobZeelogo.png" alt="logo" />
-            <h3>Login to your account</h3>
-          </div>
-          <form>
-            <div className="inputTag">
-              <label>Login As</label>
-              <div>
-                <select value={role} onChange={(e) => setRole(e.target.value)}>
-                  <option value="">Select Role</option>
-                  <option value="Service Seeker">Service Seeker</option>
-                  <option value="Service Provider">Service Provider</option>
-                </select>
-                <FaRegUser />
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Email Address</label>
-              <div>
-                <input
-                  type="email"
-                  placeholder="zk@gmail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <MdOutlineMailOutline />
-              </div>
-            </div>
-            <div className="inputTag">
-              <label>Password</label>
-              <div>
-                <input
-                  type="password"
-                  placeholder="Your Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <RiLock2Fill />
-              </div>
-            </div>
-            <button type="submit" onClick={handleLogin}>
-              Login
-            </button>
-            <Link to={"/register"}>Register Now</Link>
-          </form>
+    <section className="loginPage">
+      <form className="form" onSubmit={handleLogin}>
+        <p className="form-title">Sign in to your account</p>
+
+        <div className="input-container">
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            required
+          >
+            <option value="">Login As</option>
+            <option value="Service Provider">Service Provider</option>
+            <option value="Business Owner">Business Owner</option>
+            <option value="Community Member">Community Member</option>
+          </select>
         </div>
-        <div className="banner">
-          <img src="/login.png" alt="login" />
+
+        <div className="input-container">
+          <input
+            type="email"
+            placeholder="Enter email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
-      </section>
-    </>
+
+        <div className="input-container">
+          <input
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <button type="submit" className="submit">
+          Sign In
+        </button>
+
+        <p className="signup-link">
+          No account? <Link to="/register">Sign up</Link>
+        </p>
+      </form>
+    </section>
   );
 };
 

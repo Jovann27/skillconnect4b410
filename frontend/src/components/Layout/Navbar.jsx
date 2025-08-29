@@ -13,10 +13,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:4000/api/v1/user/logout",
-        { withCredentials: true }
-      );
+      const response = await axios.get("http://localhost:4000/api/v1/user/logout", { withCredentials: true });
       toast.success(response.data.message);
       setIsAuthorized(false);
       navigateTo("/Login");
@@ -31,14 +28,14 @@ const Navbar = () => {
       <div className="container">
         <div className="logo_container">
           <div className="logo">
-          <img src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png" alt="1000205778-removebg-preview" />
+          <img src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"/>
           </div>
           <div className="title">Skillconnect4B410</div>
         </div>
         
         <ul className={!show ? "menu" : "show-menu menu"}>
           <li>
-            <Link to="/" onClick={() => setShow(false)}>HOME</Link>
+            <Link to="/home" onClick={() => setShow(false)}>HOME</Link>
           </li>
           <li>
             <Link to="/service/getall" onClick={() => setShow(false)}>JOB OFFERS</Link>

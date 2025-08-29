@@ -41,7 +41,7 @@ export const postApplication = catchAsyncError(async (req, res, next) => {
   if (!serviceId) {
     return next(new ErrorHandler("Service not found!", 404));
   }
-  const serviceDetails = await Service.findById(serviceIdId);
+  const serviceDetails = await Service.findById(serviceId);
   if (!serviceDetails) {
     return next(new ErrorHandler("Service not found!", 404));
   }

@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import validator from "validator";
 
 export const dbConnection = async () => {
     mongoose.connect(process.env.MONGO_URI, {
