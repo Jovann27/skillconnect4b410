@@ -89,8 +89,13 @@ const Login = () => {
           No account? <Link to="/register">Sign up</Link>
         </p>
       </form>
+      {/* <div className="banner">
+        <img src="https://i.ibb.co/pmYtRfW/banner.jpg" alt="banner" border="0"/>
+      </div> */}
     </section>
   );
 };
 
 export default Login;
+
+

@@ -5,7 +5,6 @@ import toast from "react-hot-toast";
 import { Context } from "../../main";
 import "./auth.css";
 
-
 const Register = () => {
   const [formData, setFormData] = useState({
     role: "",
@@ -22,19 +21,21 @@ const Register = () => {
     occupation: "",
     employed: "",
     skills: [],
+    otherSkill: "",
     availability: "",
     certificates: null,
     validId: null,
+    profilePic: null,
   });
 
   const { isAuthorized, setIsAuthorized } = useContext(Context);
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
+
     if (type === "file") {
-      setFormData({ ...formData, [name]: files });
+      setFormData({ ...formData, [name]: files[0] });
     } else if (name === "skills") {
-      // allow multiple skills, max 2
       let updatedSkills = [...formData.skills];
       if (updatedSkills.includes(value)) {
         updatedSkills = updatedSkills.filter((s) => s !== value);
@@ -92,243 +93,222 @@ const Register = () => {
   return (
     <section className="authPage">
       <div className="container">
+        {/* Header */}
         <div className="header">
           <h3>Create Your Account</h3>
+          <p>
+            Join SkillConnect4B410 to book trusted services or offer your skills
+            to the community.
+          </p>
         </div>
 
-        <form onSubmit={handleRegister}>
-          {/* Register As */}
-          <div className="inputTag">
-            <label>Register as:</label>
-            <div>
-              <label>
+        {/* Form Layout */}
+        <form className="register-form" onSubmit={handleRegister}>
+          {/* Left Section */}
+          <div className="form-left">
+            {/* Register As */}
+            <div className="inputTag">
+              <label>Register as:</label>
+              <div className="radio-group">
+                <label>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="Service Provider"
+                    onChange={handleChange}
+                  />
+                  Service Provider
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="Business Owner"
+                    onChange={handleChange}
+                  />
+                  Business Owner
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="Community Member"
+                    onChange={handleChange}
+                  />
+                  Community Member
+                </label>
+              </div>
+            </div>
+
+            {/* Inputs */}
+            <div className="grid-2col">
+              <div className="inputTag">
+                <label>Username</label>
                 <input
-                  type="radio"
-                  name="role"
-                  value="Service Provider"
+                  type="text"
+                  name="username"
+                  value={formData.username}
                   onChange={handleChange}
+                  required
                 />
-                Service Provider
-              </label>
-              <label>
+              </div>
+              <div className="inputTag">
+                <label>Password</label>
                 <input
-                  type="radio"
-                  name="role"
-                  value="Business Owner"
+                  type="password"
+                  name="password"
+                  value={formData.password}
                   onChange={handleChange}
+                  required
                 />
-                Business Owner
-              </label>
-              <label>
+              </div>
+            </div>
+
+            <div className="grid-2col">
+              <div className="inputTag">
+                <label>Confirm Password</label>
                 <input
-                  type="radio"
-                  name="role"
-                  value="Community Member"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
                   onChange={handleChange}
+                  required
                 />
-                Community Member
-              </label>
+              </div>
+              <div className="inputTag">
+                <label>First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid-2col">
+              <div className="inputTag">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="inputTag">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid-2col">
+              <div className="inputTag">
+                <label>Contact #</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="inputTag">
+                <label>Other Contact</label>
+                <input
+                  type="text"
+                  name="otherContact"
+                  value={formData.otherContact}
+                  onChange={handleChange}
+                  placeholder="Messenger, Viber, etc."
+                />
+              </div>
+            </div>
+
+            <div className="inputTag">
+              <label>Address</label>
+              <input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="grid-2col">
+              <div className="inputTag">
+                <label>Birthdate</label>
+                <input
+                  type="date"
+                  name="birthdate"
+                  value={formData.birthdate}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="inputTag">
+                <label>Upload Valid ID</label>
+                <input type="file" name="validId" onChange={handleChange} />
+              </div>
+            </div>
+
+            <div className="inputTag">
+              <label>Enter Skills (separate with commas)</label>
+              <input
+                type="text"
+                name="skills"
+                placeholder="e.g. Plumber, Carpenter"
+                value={formData.skills.join(", ")}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    skills: e.target.value.split(",").map((s) => s.trim()),
+                  })
+                }
+              />
+            </div>
+            
+            <button type="submit" className="submitBtn">
+              Submit
+            </button>
+          </div>
+
+          {/* Right Section */}
+          <div className="form-right">
+            <div className="profile-upload">
+              <p>Insert your image here:</p>
+              <div className="profile-preview">
+                {formData.profilePic ? (
+                  <img
+                    src={URL.createObjectURL(formData.profilePic)}
+                    alt="preview"
+                  />
+                ) : (
+                  <div className="placeholder"></div>
+                )}
+              </div>
+              <input
+                type="file"
+                name="profilePic"
+                accept="image/*"
+                onChange={handleChange}
+              />
             </div>
           </div>
-
-          {/* Username */}
-          <div className="inputTag">
-            <label>Username</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Password & Confirm */}
-          <div className="inputTag">
-            <label>Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="inputTag">
-            <label>Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* First/Last Name */}
-          <div className="inputTag">
-            <label>First Name</label>
-            <input
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="inputTag">
-            <label>Last Name</label>
-            <input
-              type="text"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Email */}
-          <div className="inputTag">
-            <label>Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Contact */}
-          <div className="inputTag">
-            <label>Contact Number</label>
-            <input
-              type="text"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="inputTag">
-            <label>Other Contact (optional)</label>
-            <input
-              type="text"
-              name="otherContact"
-              value={formData.otherContact}
-              onChange={handleChange}
-            />
-          </div>
-
-          {/* Address */}
-          <div className="inputTag">
-            <label>Address</label>
-            <input
-              type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Birthdate */}
-          <div className="inputTag">
-            <label>Birthdate</label>
-            <input
-              type="date"
-              name="birthdate"
-              value={formData.birthdate}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Uploads */}
-          <div className="inputTag">
-            <label>Upload Certificates (optional)</label>
-            <input type="file" name="certificates" multiple onChange={handleChange} />
-          </div>
-          <div className="inputTag">
-            <label>Upload Valid ID</label>
-            <input type="file" name="validId" onChange={handleChange} required />
-          </div>
-
-          {/* Employment Status */}
-          <div className="inputTag">
-            <label>Are you employed now?</label>
-            <label>
-              <input
-                type="radio"
-                name="employed"
-                value="true"
-                onChange={(e) => setEmployed(e.target.value === "true")}
-              />
-              Yes
-            </label>
-
-            <label>
-              <input
-                type="radio"
-                name="employed"
-                value="false"
-                onChange={(e) => setEmployed(e.target.value === "true")}
-              />
-              No
-            </label>
-          </div>
-
-          {/* Occupation */}
-          <div className="inputTag">
-            <label>Occupation</label>
-            <select name="occupation" value={formData.occupation} onChange={handleChange}>
-              <option value="">Select Occupation</option>
-              <option value="Plumber">Plumber</option>
-              <option value="Carpenter">Carpenter</option>
-              <option value="Electrician">Electrician</option>
-              <option value="Mason">Mason</option>
-              <option value="Tailor">Tailor</option>
-              <option value="NA">N/A</option>
-            </select>
-          </div>
-
-          {/* Choose Date */}
-          <div className="inputTag">
-            <label>Choose Availability Date</label>
-            <input
-              type="date"
-              name="availability"
-              value={formData.availability}
-              onChange={handleChange}
-            />
-          </div>
-
-          {/* Choose Skill */}
-          <div className="inputTag">
-            <label>Choose Skill (Max 2)</label>
-            <div>
-              {["Plumber", "Carpenter", "Electrician", "Mason", "Tailor", "NA"].map(
-                (skill) => (
-                  <label key={skill}>
-                    <input
-                      type="checkbox"
-                      name="skills"
-                      value={skill}
-                      checked={formData.skills.includes(skill)}
-                      onChange={handleChange}
-                    />
-                    {skill}
-                  </label>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* Submit */}
-          <button type="submit">Submit</button>
         </form>
 
-        <Link to="/login">Already have an account? Login</Link>
+        <Link to="/login" className="login-link">
+          Already have an account? Login
+        </Link>
       </div>
     </section>
   );
