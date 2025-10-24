@@ -1,9 +1,7 @@
 import JobFair from "../models/jobFairSchema.js";
 import User from "../models/userSchema.js";
-import Booking from "../models/booking.js";
 import ServiceRequest from "../models/serviceRequest.js";
 import ErrorHandler from "../middlewares/error.js";
-import cloudinary from "cloudinary";
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 
 // Create Job Fair

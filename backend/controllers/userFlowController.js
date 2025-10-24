@@ -2,7 +2,6 @@ import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import User from "../models/userSchema.js";
 import ServiceRequest from "../models/serviceRequest.js";
-import Booking from "../models/booking.js";
 import Review from "../models/review.js";
 import verificationAppointmentSchema from "../models/verificationSchema.js";
 import Notification from "../models/notification.js";
@@ -19,7 +18,6 @@ const sendNotification = async (userId, title, message, meta = {}) => {
 };
 
 
-// Apply to become provider (adds skills and certificates, flags for admin)
 export const applyProvider = catchAsyncError(async (req, res, next) => {
   const { skills, certificates } = req.body;
   if (!req.user) 
@@ -48,7 +46,6 @@ export const applyProvider = catchAsyncError(async (req, res, next) => {
 
 
 
-// Community member posts a service request
 export const postServiceRequest = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { name, address, phone, typeOfWork, time, budget, notes, location, targetProvider } = req.body;
@@ -74,7 +71,6 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
 
 
 
-// Provider or requester confirms booking (booking status transitions)
 export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { id } = req.params;
@@ -85,7 +81,6 @@ export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   const allowed = ["Pending", "Confirmed", "InProgress", "Completed", "Cancelled"];
   if (!allowed.includes(status)) return next(new ErrorHandler("Invalid status", 400));
 
-  // Only requester or provider can change status (you can add role checks)
   if (![String(booking.requester), String(booking.provider)].includes(String(req.user._id))) {
     return next(new ErrorHandler("Not authorized", 403));
   }
@@ -93,14 +88,12 @@ export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   booking.status = status;
   await booking.save();
 
-  // Notify the other party
   const otherUser = String(booking.requester) === String(req.user._id) ? booking.provider : booking.requester;
   await sendNotification(otherUser, `Booking ${status}`, `Booking ${booking._id} status changed to ${status}`);
 
   res.json({ success: true, booking });
 });
 
-// Leave review after booking
 export const leaveReview = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { bookingId, rating, comments } = req.body;
@@ -127,7 +120,6 @@ export const leaveReview = catchAsyncError(async (req, res, next) => {
   res.status(201).json({ success: true, review });
 });
 
-// Get open service requests for providers to browse and offer on
 export const getServiceRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
@@ -199,7 +191,6 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
 
 
 
-// Get service requests for the authenticated user (as requester)
 export const getUserServiceRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const requests = await ServiceRequest.find({ requester: req.user._id })
@@ -207,7 +198,6 @@ export const getUserServiceRequests = catchAsyncError(async (req, res, next) => 
   res.status(200).json({ success: true, requests });
 });
 
-// Cancel a service request
 export const cancelServiceRequest = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { id } = req.params;
@@ -222,7 +212,6 @@ export const cancelServiceRequest = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, message: "Request cancelled" });
 });
 
-// Provider accepts a service request directly
 export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { id } = req.params;
@@ -259,7 +248,6 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   res.status(201).json({ success: true, booking, request });
 });
 
-// Get bookings for the authenticated user
 export const getBookings = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const bookings = await Booking.find({
@@ -270,14 +258,12 @@ export const getBookings = catchAsyncError(async (req, res, next) => {
 
 
 
-// Get user service profile
 export const getServiceProfile = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
   const user = await User.findById(req.user._id);
   if (!user) return next(new ErrorHandler("User not found", 404));
 
-  // Return service profile data
   const serviceProfile = {
     service: user.service || '',
     rate: user.serviceRate || '',
@@ -288,7 +274,6 @@ export const getServiceProfile = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, data: serviceProfile });
 });
 
-// Update user service profile
 export const updateServiceProfile = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
@@ -296,7 +281,6 @@ export const updateServiceProfile = catchAsyncError(async (req, res, next) => {
   const user = await User.findById(req.user._id);
   if (!user) return next(new ErrorHandler("User not found", 404));
 
-  // Update service profile fields
   user.service = service || user.service;
   user.serviceRate = rate || user.serviceRate;
   user.serviceDescription = description || user.serviceDescription;
@@ -306,7 +290,6 @@ export const updateServiceProfile = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, message: "Service profile updated", data: { service, rate, description } });
 });
 
-// Update user online/offline status
 export const updateServiceStatus = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
@@ -320,7 +303,6 @@ export const updateServiceStatus = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ success: true, message: `Status updated to ${isOnline ? 'Online' : 'Offline'}` });
 });
 
-// Get matching service requests for provider based on budget
 export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
@@ -331,8 +313,7 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
   const providerRate = provider.serviceRate || 0;
   const providerService = provider.service || '';
 
-  // Find requests where budget is close to provider's rate (within 20% or exact match)
-  const tolerance = providerRate * 0.2; // 20% tolerance
+  const tolerance = providerRate * 0.2;
   const minBudget = providerRate - tolerance;
   const maxBudget = providerRate + tolerance;
 
@@ -347,7 +328,7 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
     model: 'User'
   })
   .sort({ createdAt: -1 })
-  .limit(10); // Limit to 10 requests
+  .limit(10); 
 
   res.status(200).json({
     success: true,

@@ -10,7 +10,6 @@ const adminSchema = new mongoose.Schema({
   role: { type: String, default: "Admin" },
 });
 
-// Hash password
 adminSchema.pre("save", async function(next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
