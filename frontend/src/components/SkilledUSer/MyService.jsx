@@ -53,13 +53,7 @@ const MyService = () => {
           setIsOnline(data.isOnline !== false); // Default to true
         }
       } catch (error) {
-        console.log('No existing service profile found, using defaults');
-        // Set defaults if no service profile exists
-        setFormData({
-          service: '',
-          rate: '',
-          description: ''
-        });
+       
         setIsOnline(true);
       } finally {
         setLoading(false);
