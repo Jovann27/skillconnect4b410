@@ -12,11 +12,9 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.status, response.config.url);
     return response;
   },
   (error) => {
-    console.error('API Error:', error.response?.status, error.response?.data, error.config?.url);
     const config = error.config;
 
     // Handle rate limiting (429 errors)

@@ -93,7 +93,6 @@ const MyService = () => {
   }, [user, isAuthorized]);
 
   useEffect(() => {
-    // Get user's current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -149,13 +148,6 @@ const MyService = () => {
     }
   }, [userLocation, locationLoading]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
 
   const handleStatusToggle = async () => {
     try {
@@ -194,7 +186,6 @@ const MyService = () => {
       const response = await api.post(`/user/service-request/${currentRequest._id}/accept`);
       if (response.data.success) {
         toast.success('Request accepted successfully!');
-        // Clear the current request
         setCurrentRequest(null);
         setClientData({
           name: '',
@@ -214,7 +205,6 @@ const MyService = () => {
     if (!currentRequest) return;
 
     try {
-      // For now, just clear the request. In a real app, you might want to mark it as declined
       setCurrentRequest(null);
       setClientData({
         name: '',
@@ -232,15 +222,6 @@ const MyService = () => {
 
 
 
-  if (loading) {
-    return (
-      <div className="main-content">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-        </div>
-      </div>
-    );
-  }
 
   if (!isAuthorized || !user) {
     return (
@@ -257,25 +238,11 @@ const MyService = () => {
     );
   }
 
-  // Debug user data
-  console.log('MyService - Rendering with user:', user);
-  console.log('MyService - User properties:', {
-    firstName: user?.firstName,
-    lastName: user?.lastName,
-    username: user?.username,
-    email: user?.email,
-    phone: user?.phone,
-    profilePic: user?.profilePic
-  });
 
   return (
     <div className="main-content">
-
-
       <div className="content-layout">
-        {/* Left Column: Services and Status */}
         <div className="left-column">
-          {/* Your Services */}
           <div className="services-section">
             <h3>Your Services:</h3>
             <div className="services-list">
@@ -294,7 +261,6 @@ const MyService = () => {
             <button className="save-changes-button">SAVE CHANGES</button>
           </div>
 
-          {/* Online/Offline Toggle */}
           <div className="status-toggle-section">
             <div className={`status-toggle ${isOnline ? 'online' : 'offline'}`}>
               <span className="status-text">{isOnline ? 'Online' : 'Offline'}</span>
@@ -310,7 +276,6 @@ const MyService = () => {
           </div>
         </div>
 
-        {/* Right Column: Map */}
         <div className="right-column">
           {locationLoading ? (
             <div className="map-loading">
@@ -325,7 +290,6 @@ const MyService = () => {
 
 
 
-      {/* Client Information */}
       <div className="client-section">
         {loadingRequests ? (
           <div className="loading-spinner">
