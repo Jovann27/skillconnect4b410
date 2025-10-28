@@ -101,9 +101,6 @@ const SytemAnalytics = () => {
             <option value="90d">Last 90 days</option>
             <option value="1y">Last year</option>
           </select>
-          <button onClick={fetchAnalyticsData} className="refresh-btn">
-            <FaSyncAlt /> Refresh
-          </button>
         </div>
       </div>
 
@@ -116,7 +113,6 @@ const SytemAnalytics = () => {
           <div className="card-content">
             <h3>Total Users</h3>
             <p className="metric-value">{analyticsData.totalUsers}</p>
-            <span className="metric-change positive">+12%</span>
           </div>
         </div>
 
@@ -127,7 +123,6 @@ const SytemAnalytics = () => {
           <div className="card-content">
             <h3>Service Providers</h3>
             <p className="metric-value">{analyticsData.totalProviders}</p>
-            <span className="metric-change positive">+8%</span>
           </div>
         </div>
 
@@ -138,7 +133,6 @@ const SytemAnalytics = () => {
           <div className="card-content">
             <h3>Job Fairs</h3>
             <p className="metric-value">{analyticsData.totalJobFairs}</p>
-            <span className="metric-change neutral">+2</span>
           </div>
         </div>
 
@@ -149,7 +143,6 @@ const SytemAnalytics = () => {
           <div className="card-content">
             <h3>Total Bookings</h3>
             <p className="metric-value">{analyticsData.totalBookings}</p>
-            <span className="metric-change positive">+15%</span>
           </div>
         </div>
       </div>
@@ -194,7 +187,6 @@ const SytemAnalytics = () => {
             </div>
             <div className="stat-item">
               <span className="stat-label">Success Rate</span>
-              <span className="stat-value">94%</span>
             </div>
           </div>
         </div>

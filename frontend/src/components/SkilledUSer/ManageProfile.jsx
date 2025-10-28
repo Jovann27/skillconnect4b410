@@ -7,6 +7,7 @@ const ManageProfile = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // Removed signed URL state since validId is now only images
   const [formData, setFormData] = useState({
     username: '',
     firstName: '',
@@ -33,6 +34,8 @@ const ManageProfile = () => {
     };
     loadProfile();
   }, []);
+
+  // Removed signed URL fetching since validId is now only images
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
@@ -53,7 +56,7 @@ const ManageProfile = () => {
           employed: userData.employed || false,
           role: userData.role || 'Community Member',
           isApplyingProvider: userData.isApplyingProvider || false,
-          skills: userData.skills ? JSON.parse(userData.skills).join(', ') : '',
+          skills: Array.isArray(userData.skills) ? userData.skills.join(', ') : (typeof userData.skills === 'string' ? userData.skills.split(',').map(s => s.trim()).join(', ') : ''),
           profilePic: null,
           validId: null,
           certificates: null,
@@ -82,6 +85,8 @@ const ManageProfile = () => {
       [name]: name === 'certificates' ? files : files[0]
     }));
   };
+  // Removed unused function
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -362,7 +367,17 @@ const ManageProfile = () => {
                     <p>Current Certificates:</p>
                     <div className="certificate-grid">
                       {user.certificates.map((cert, index) => (
-                        <img key={index} src={cert} alt={`Certificate ${index + 1}`} className="document-image" />
+                        cert.endsWith('.pdf') ? (
+                          <iframe
+                            key={index}
+                            src={cert}
+                            width="100%"
+                            height="200"
+                            title={`Certificate ${index + 1}`}
+                          />
+                        ) : (
+                          <img key={index} src={cert} alt={`Certificate ${index + 1}`} className="document-image" />
+                        )
                       ))}
                     </div>
                   </div>

@@ -61,8 +61,7 @@ const Navbar = () => {
   return (
     <nav className="navbar" role="navigation" aria-label="Main navigation">
       <div className="navbar-container">
-        {/* Logo */}
-        <Link to="/" className="navbar-logo">
+        <Link to="/home" className="navbar-logo">
           <img
             src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"
             alt="SkillConnect4B410 logo"
@@ -71,12 +70,10 @@ const Navbar = () => {
           <span className="navbar-logo-text">SkillConnect4B410</span>
         </Link>
 
-        {/* Navigation Menu */}
         <div className={`navbar-menu ${show ? 'mobile-menu show' : ''}`}>
           <ul className="navbar-menu-list">
-            {/* Public links */}
             <li role="none">
-              <Link to="/" className="navbar-link" role="menuitem" aria-label="Go to home page">
+              <Link to="/home" className="navbar-link" role="menuitem" aria-label="Go to home page">
                 HOME
               </Link>
             </li>
@@ -104,32 +101,32 @@ const Navbar = () => {
 
             {/* User Dashboard */}
             {user && (
-              <>
-                <li role="none">
-                  <Link to="/user/my-service" className="navbar-link" role="menuitem" aria-label="Go to statistics">
-                    DASHBOARD
-                  </Link>
-                </li>
-                <li role="none">
-                  <div className="navbar-user">
-                    <button
-                      className="navbar-logout-btn"
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      aria-label={isLoggingOut ? "Logging out, please wait" : "Logout from your account"}
-                    >
-                      {isLoggingOut ? (
-                        <>
-                          <span className="loading-spinner" aria-hidden="true"></span>
-                          <span>Logging out...</span>
-                        </>
-                      ) : (
-                        'LOGOUT'
-                      )}
-                    </button>
-                  </div>
-                </li>
-              </>
+              <li role="none">
+                <Link to="/user/my-service" className="navbar-link" role="menuitem" aria-label="Go to user dashboard">
+                  DASHBOARD
+                </Link>
+              </li>
+            )}
+            {user && (
+              <li role="none">
+                <div className="navbar-user">
+                  <button
+                    className="navbar-logout-btn"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    aria-label={isLoggingOut ? "Logging out, please wait" : "Logout from your account"}
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <span className="loading-spinner" aria-hidden="true"></span>
+                        <span>Logging out...</span>
+                      </>
+                    ) : (
+                      'LOGOUT'
+                    )}
+                  </button>
+                </div>
+              </li>
             )}
 
             {/* Admin Dashboard */}

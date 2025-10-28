@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -8,10 +8,14 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useMainContext } from "./mainContext";
+import NotificationListener from "./components/NotificationListener";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Layout
 import Navbar from "./components/Layout/Navbar";
 import Footer from "./components/Layout/Footer";
+import ChatIcon from "./components/ChatIcon";
 
 // Home pages
 import Home from "./components/Home/Home";
@@ -37,7 +41,6 @@ import MyService from "./components/SkilledUSer/MyService";
 import UserDashboard from "./components/SkilledUSer/UserDashboard";
 import ServiceRequest from "./components/SkilledUSer/ServiceRequest";
 import UserWorkRecords from "./components/SkilledUSer/UserRecords";
-import UserSettings from "./components/SkilledUSer/UserSettings";
 import Help from "./components/SkilledUSer/Help";
 import UserRequest from "./components/SkilledUSer/UsersRequest";
 import ManageProfile from "./components/SkilledUSer/ManageProfile";
@@ -48,53 +51,31 @@ import ErrorBoundary from "./components/Layout/ErrorBoundary";
 import { PopupProvider } from "./components/Layout/PopupContext";
 
 const AppContent = () => {
-  const { isAuthorized, tokenType, authLoaded } = useMainContext();
+  const { isAuthorized, tokenType, authLoaded, user, admin } = useMainContext();
   const location = useLocation();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const isAdmin = isAuthorized && tokenType === "admin";
-  const isUser = isAuthorized && tokenType === "user";
+const isAdmin = isAuthorized && tokenType === "admin";
+const isUser = isAuthorized && tokenType === "user";
 
 
 
   useEffect(() => {
-    if (
-      isAuthorized &&
-      !location.pathname.includes("/login") &&
-      !location.pathname.includes("/register") &&
-      location.pathname !== "/"
-    ) {
-      sessionStorage.setItem("lastPath", location.pathname);
-    }
-  }, [location.pathname, isAuthorized]);
+    if (!authLoaded) return;
 
-  useEffect(() => {
     if (isAuthorized && location.pathname === "/") {
-      const lastPath = sessionStorage.getItem("lastPath");
-      if (lastPath) navigate(lastPath);
-      else navigate(isAdmin ? "/admin/dashboard" : "/user/my-service");
+      let targetPath = isAdmin ? "/admin/dashboard" : "/user/my-service";
+
+      if (location.pathname !== targetPath) {
+        navigate(targetPath, { replace: true });
+      }
     }
-  }, [isAuthorized, location.pathname, navigate, isAdmin]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, [location]);
-
-  // Set up navigation function for context to use
-  useEffect(() => {
-    window.userNavigateFunction = navigate;
-    return () => {
-      delete window.userNavigateFunction;
-    };
-  }, [navigate]);
-
+  }, [isAuthorized, location.pathname, navigate, isAdmin, isUser, authLoaded]);
 
   return (
     <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
         <Route path="/about" element={<About />} />
 
         <Route path="/login" element={<Login />} />
@@ -121,7 +102,6 @@ const AppContent = () => {
           <Route path="my-service" element={<MyService />} />
           <Route path="request-service" element={<ServiceRequest />} />
           <Route path="records" element={<UserWorkRecords />} />
-          <Route path="settings" element={<UserSettings />} />
           <Route path="help" element={<Help />} />
           <Route path="users-request" element={<UserRequest />} />
           <Route path="manage-profile" element={<ManageProfile />} />
@@ -147,6 +127,12 @@ const AppContent = () => {
       </Routes>
       {/* Hide main footer for user dashboard */}
       {!isAdmin && !isUser && <Footer />}
+
+      {/* Real-time notification listener */}
+      <NotificationListener user={isUser ? user : admin} />
+
+      {/* Chat Icon for authenticated users */}
+      <ChatIcon />
     </>
   );
 };
@@ -156,6 +142,7 @@ const App = () => (
     <PopupProvider>
       <Router>
         <AppContent />
+        <ToastContainer />
       </Router>
     </PopupProvider>
   </ErrorBoundary>

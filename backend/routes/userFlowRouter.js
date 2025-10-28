@@ -13,9 +13,15 @@ import {
   updateServiceProfile,
   updateServiceStatus,
   getUserServiceRequests,
-  cancelServiceRequest,
+  deleteServiceRequest,
   acceptServiceRequest,
-  getMatchingRequests
+  getMatchingRequests,
+  getUserServices,
+  updateServiceRequest,
+  getChatHistory,
+  sendMessage,
+  getChatList,
+  markMessagesAsSeen
 } from '../controllers/userFlowController.js';
 
 const router = express.Router();
@@ -32,12 +38,12 @@ router.get('/dashboard/stats', isUserAuthenticated, async (req, res) => {
 
     const completedJobs = await ServiceRequest.countDocuments({
       serviceProvider: userId,
-      status: 'Completed'
+      status: 'Complete'
     });
 
     const activeJobs = await ServiceRequest.countDocuments({
       serviceProvider: userId,
-      status: 'Assigned'
+      status: 'Working'
     });
 
     const cancelledJobs = await ServiceRequest.countDocuments({
@@ -48,7 +54,7 @@ router.get('/dashboard/stats', isUserAuthenticated, async (req, res) => {
     // Get pending requests count (open requests where provider can still bid)
     const pendingRequests = await ServiceRequest.countDocuments({
       serviceProvider: userId,
-      status: 'Open'
+      status: 'Available'
     });
 
     // Calculate average rating from reviews
@@ -60,7 +66,7 @@ router.get('/dashboard/stats', isUserAuthenticated, async (req, res) => {
     // Calculate total earnings from completed jobs
     const completedJobsWithBudget = await ServiceRequest.find({
       serviceProvider: userId,
-      status: 'Completed'
+      status: 'Complete'
     }).select('budget');
 
     const totalEarnings = completedJobsWithBudget.reduce((sum, job) => sum + (job.budget || 0), 0);
@@ -120,11 +126,11 @@ router.get('/dashboard/recent-activity', isUserAuthenticated, async (req, res) =
       const customerName = request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : 'Unknown';
       activities.push({
         id: `request_${request._id}`,
-        type: request.status === 'Completed' ? 'job_completed' : 'new_request',
+        type: request.status === 'Complete' ? 'job_completed' : 'new_request',
         title: `${request.title} - ${request.status}`,
         description: `Budget: $${request.budget} - Customer: ${customerName}`,
         time: getTimeAgo(request.createdAt),
-        status: request.status === 'Completed' ? 'success' : 'pending'
+        status: request.status === 'Complete' ? 'success' : 'pending'
       });
     });
 
@@ -166,7 +172,8 @@ router.post('/review', isUserAuthenticated, leaveReview);
 router.get('/service-requests', isUserAuthenticated, getServiceRequests);
 router.post('/post-service-request', isUserAuthenticated, postServiceRequest);
 router.get('/user-service-requests', isUserAuthenticated, getUserServiceRequests);
-router.put('/service-request/:id/cancel', isUserAuthenticated, cancelServiceRequest);
+router.delete('/service-request/:id/delete', isUserAuthenticated, deleteServiceRequest);
+router.put('/service-request/:id/update', isUserAuthenticated, updateServiceRequest);
 router.post('/service-request/:id/accept', isUserAuthenticated, acceptServiceRequest);
 
 // Helper function to calculate time ago
@@ -189,5 +196,14 @@ router.put('/service-status', isUserAuthenticated, updateServiceStatus);
 
 // Matching requests route
 router.get('/matching-requests', isUserAuthenticated, getMatchingRequests);
+
+// User services route
+router.get('/services', isUserAuthenticated, getUserServices);
+
+// Chat routes
+router.get('/chat-history', isUserAuthenticated, getChatHistory);
+router.get('/chat-list', isUserAuthenticated, getChatList);
+router.post('/send-message', isUserAuthenticated, sendMessage);
+router.put('/chat/:appointmentId/mark-seen', isUserAuthenticated, markMessagesAsSeen);
 
 export default router;

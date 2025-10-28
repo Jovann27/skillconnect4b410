@@ -8,6 +8,7 @@ const adminSchema = new mongoose.Schema({
   password: { type: String, required: true, select: false },
   profilePic: { type: String, default: "" },
   role: { type: String, default: "Admin" },
+  services: { type: [String], default: [] },
 });
 
 adminSchema.pre("save", async function(next) {

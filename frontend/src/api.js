@@ -5,8 +5,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor to add retry logic for rate limiting
+// Request interceptor to add retry logic for rate limiting and auth token
 api.interceptors.request.use((config) => {
+  // Add token to Authorization header if available
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 

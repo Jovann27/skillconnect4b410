@@ -1,14 +1,17 @@
 import './RequestDetailPopup.css';
 
-const RequestDetailPopup = ({ request, isOpen, onClose, onChat }) => {
+const RequestDetailPopup = ({ request, isOpen, onClose, onChat, onDelete }) => {
   if (!isOpen || !request) return null;
 
   const getStatusClass = (status) => {
     switch (status) {
+      case "Available":
+      case "Waiting":
+      case "Open":
+        return "status-open";
       case "Working":
         return "status-working";
-      case "Waiting":
-        return "status-waiting";
+      case "Complete":
       case "Completed":
         return "status-completed";
       case "Cancelled":
@@ -43,7 +46,7 @@ const RequestDetailPopup = ({ request, isOpen, onClose, onChat }) => {
               <div className="info-group">
                 <label>Status:</label>
                 <span className={`status-badge ${getStatusClass(request.status)}`}>
-                  {request.status}
+                  {request.status === "Waiting" ? "Available" : request.status === "Completed" ? "Complete" : request.status === "Open" ? "Available" : request.status}
                 </span>
               </div>
               <div className="info-group">
@@ -87,6 +90,25 @@ const RequestDetailPopup = ({ request, isOpen, onClose, onChat }) => {
               </div>
             </div>
 
+            {/* Service Provider Information */}
+            {request.acceptedBy && (
+              <div className="info-row">
+                <div className="info-group">
+                  <label>Service Provider:</label>
+                  <span>
+                    {request.acceptedBy.firstName && request.acceptedBy.lastName ?
+                      `${request.acceptedBy.firstName} ${request.acceptedBy.lastName}` :
+                      request.acceptedBy.username || "Unknown Provider"
+                    }
+                  </span>
+                </div>
+                <div className="info-group">
+                  <label>Contact:</label>
+                  <span>{request.acceptedBy.phone || "Not provided"}</span>
+                </div>
+              </div>
+            )}
+
             {/* Fourth Row - Location and Time */}
             <div className="info-row">
               <div className="info-group">
@@ -124,7 +146,10 @@ const RequestDetailPopup = ({ request, isOpen, onClose, onChat }) => {
 
           <div className="popup-actions">
             <button className="chat-button" onClick={() => onChat && onChat(request)}>
-              💬 Chat
+              💬 Chat with Provider
+            </button>
+            <button className="delete-button" onClick={() => onDelete && onDelete(request)}>
+              Delete
             </button>
             <button className="back-button" onClick={onClose}>
               Back

@@ -9,7 +9,7 @@ const WaitingForWorker = () => {
   const location = useLocation();
   const requestData = location.state?.requestData;
 
-  const [status, setStatus] = useState('Open');
+  const [status, setStatus] = useState('Available');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ const WaitingForWorker = () => {
         const currentRequest = requests.find(req => req._id === requestData._id);
         if (currentRequest) {
           setStatus(currentRequest.status);
-          if (currentRequest.status === 'Assigned') {
+          if (currentRequest.status === 'Working') {
             toast.success('A service provider has accepted your request!');
             navigate('/user/dashboard'); // Or to a booking page
           } else if (currentRequest.status === 'Cancelled') {

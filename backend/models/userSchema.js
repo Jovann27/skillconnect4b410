@@ -14,34 +14,28 @@ const userSchema = new mongoose.Schema({
   birthdate: { type: Date, required: true },
   occupation: { type: String, default: "" },
 
-  // employment/roles
   employed: { type: String, required: true },
   role: { type: String, enum: ["Community Member", "Service Provider", "Admin"], default: "Community Member" },
 
-  // provider-specific fields
   isApplyingProvider: { type: Boolean, default: false }, // user applied to become provider
   skills: { type: [String], default: [] },
   certificates: { type: [String], default: [] },
   profilePic: { type: String, default: "" },
-  validId: { type: String, required: true },
+  validId: { type: String, default: "" },
 
-  // verification & availability
   verified: { type: Boolean, default: false },
   availability: { type: String, enum: ["Available", "Currently Working", "Not Available"], default: "Not Available" },
   acceptedWork: { type: Boolean, default: false },
 
-  // service profile fields
   service: { type: String, default: "" },
   serviceRate: { type: Number, default: 0 },
   serviceDescription: { type: String, default: "" },
   isOnline: { type: Boolean, default: true },
+  services: { type: [String], default: [] },
 
-  // relations
-  servicePosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "ServicePost" }], // services posted by provider
   bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: "Booking" }],
   notifications: [{ type: mongoose.Schema.Types.ObjectId, ref: "Notification" }],
 
-  // security
   password: { type: String, required: true, minLength: 8, select: false },
 
   banned: { type: Boolean, default: false },
@@ -51,10 +45,8 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Indexes
 userSchema.index({ skills: 1 });
 
-// Hash password
 userSchema.pre("save", async function(next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
@@ -66,7 +58,8 @@ userSchema.methods.comparePassword = async function(enteredPassword) {
 };
 
 userSchema.methods.getJWTToken = function() {
-  return jwt.sign({ id: this._id, role: this.role, type: "user" }, process.env.JWT_SECRET_KEY, { expiresIn: process.env.JWT_EXPIRE });
+  return jwt.sign({ id: this._id, role: this.role, type: "user" }, 
+    process.env.JWT_SECRET_KEY, { expiresIn: process.env.JWT_EXPIRE });
 };
 
 export default mongoose.model("User", userSchema);

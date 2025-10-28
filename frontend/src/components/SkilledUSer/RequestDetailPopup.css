@@ -1,4 +1,3 @@
-/* Request Detail Popup Styles */
 .popup-overlay {
   position: fixed;
   top: 0;
@@ -119,23 +118,23 @@
   display: inline-block;
 }
 
+.status-open {
+  background-color: #ffc107;
+  color: black;
+}
+
 .status-working {
-  background-color: #007bff;
+  background-color: #242532;
   color: white;
 }
 
-.status-waiting {
-  background-color: #ffc107;
-  color: #212529;
-}
-
 .status-completed {
-  background-color: #28a745;
+  background-color: #234555;
   color: white;
 }
 
 .status-cancelled {
-  background-color: #dc3545;
+  background-color: #598588;
   color: white;
 }
 
@@ -214,6 +213,22 @@
   background-color: #5a6268;
 }
 
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .popup-overlay {
@@ -247,7 +262,8 @@
   }
 
   .chat-button,
-  .back-button {
+  .back-button,
+  .delete-button {
     width: 100%;
     justify-content: center;
   }

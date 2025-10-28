@@ -52,7 +52,7 @@ const ReviewServiceRequest = () => {
             <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="accepted">Accepted</option>
-            <option value="completed">Completed</option>
+            <option value="complete">Complete</option>
             <option value="cancelled">Cancelled</option>
           </select>
           <select value={limit} onChange={e=>{ setLimit(parseInt(e.target.value)); fetchPage(1, parseInt(e.target.value)); }} className="time-range-select">

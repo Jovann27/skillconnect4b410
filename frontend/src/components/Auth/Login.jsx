@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useMainContext } from "../../mainContext";
 import api from "../../api";
+import { updateSocketToken } from "../../utils/socket";
 import "./auth-styles.css";
 
 const Login = () => {
@@ -38,13 +39,18 @@ const Login = () => {
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+    const storedToken = localStorage.getItem("token");
     const isAuth = localStorage.getItem("isAuthorized") === "true";
     const type = localStorage.getItem("tokenType");
 
-    if (storedUser && isAuth) {
+    if (storedUser && isAuth && storedToken) {
       setUser(storedUser);
       setIsAuthorized(true);
       setTokenType(type);
+
+      // Update socket token for real-time chat
+      updateSocketToken(storedToken);
+
       navigate("/");
     }
   }, [navigate, setUser, setIsAuthorized, setTokenType]);
@@ -86,17 +92,25 @@ const Login = () => {
       setIsAuthorized(true);
       setTokenType("user");
 
-      // Update localStorage with user data
+      // Update localStorage with user data and token
       localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
       localStorage.setItem("isAuthorized", "true");
       localStorage.setItem("tokenType", "user");
 
       console.log("Login: localStorage set - user:", localStorage.getItem("user"));
+      console.log("Login: localStorage set - token:", localStorage.getItem("token"));
       console.log("Login: localStorage set - isAuthorized:", localStorage.getItem("isAuthorized"));
       console.log("Login: localStorage set - tokenType:", localStorage.getItem("tokenType"));
 
       if (rememberMe) {
         localStorage.setItem("rememberedEmail", formData.email);
+      }
+
+      // Update socket token for real-time chat
+      const token = localStorage.getItem("token");
+      if (token) {
+        updateSocketToken(token);
       }
 
       toast.success(data.message || "Login successful!");

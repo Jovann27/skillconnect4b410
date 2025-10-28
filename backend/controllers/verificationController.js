@@ -72,7 +72,7 @@ export const updateVerificationAppointment = async (req, res) => {
     await appointment.save();
 
     // If completed and passed, mark provider as verified
-    if (status === "Completed" && result === "Passed") {
+    if (status === "Complete" && result === "Passed") {
       const provider = await User.findById(appointment.provider);
       if (provider) {
         provider.verified = true;

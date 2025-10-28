@@ -32,11 +32,9 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isAuthorized, setIsAuthorized, setUser, setTokenType } = useMainContext();
 
-  // Form validation
   const validateForm = () => {
     const errors = {};
 
-    // Username validation
     if (!formData.username || formData.username.length < 3) {
       errors.username = "Username must be at least 3 characters long";
     }
@@ -80,6 +78,8 @@ const Register = () => {
       }
       if (!formData.validId) {
         errors.validId = "Valid ID is required for Service Providers";
+      } else if (!formData.validId.type.startsWith("image/")) {
+        errors.validId = "Valid ID must be an image file (JPG, PNG, etc.)";
       }
     }
 
@@ -131,6 +131,9 @@ const Register = () => {
         if (formData[key]) {
           if (key === "certificates") {
             formData[key].forEach((file) => submitData.append(key, file));
+          } else if (key === "validId" && formData.role !== "Service Provider") {
+            // Don't include validId for Community Members
+            return;
           } else {
             submitData.append(key, formData[key]);
           }
@@ -530,6 +533,7 @@ const Register = () => {
           {/* Birthdate */}
           <div className="input-container icon-input">
             <i className="fas fa-calendar" aria-hidden="true"></i>
+            <label htmlFor="BirthDate">Birth Date:</label>
             <input
               type="date"
               name="birthdate"
@@ -605,11 +609,6 @@ const Register = () => {
                   aria-describedby={validationErrors.certificates ? 'certificates-error' : 'certificates-help'}
                   aria-invalid={!!validationErrors.certificates}
                 />
-                <div className="file-upload-area">
-                  <FaUpload className="upload-icon" />
-                  <span>Click to upload or drag and drop certificates</span>
-                  <small>Supported formats: JPG, PNG, PDF</small>
-                </div>
                 <div className="file-list" aria-live="polite">
                   {formData.certificates.length > 0 ? (
                     formData.certificates.map((file, index) => (
@@ -647,17 +646,12 @@ const Register = () => {
                   type="file"
                   id="validId"
                   name="validId"
-                  accept="image/*,application/pdf"
+                  accept="image/*"
                   onChange={handleChange}
                   className={`register-input ${validationErrors.validId ? 'error' : formData.validId ? 'success' : ''}`}
                   aria-describedby={validationErrors.validId ? 'validId-error' : 'validId-help'}
                   aria-invalid={!!validationErrors.validId}
                 />
-                <div className="file-upload-area">
-                  <FaUpload className="upload-icon" />
-                  <span>Click to upload or drag and drop your ID</span>
-                  <small>Supported formats: JPG, PNG, PDF</small>
-                </div>
                 <div className="file-preview" aria-live="polite">
                   {formData.validId ? (
                     formData.validId.type.startsWith("image/") ? (
@@ -666,7 +660,7 @@ const Register = () => {
                         alt="Valid ID preview"
                       />
                     ) : (
-                      <span className="file-name">{formData.validId.name}</span>
+                      <span className="file-name">Invalid file type. Please select an image.</span>
                     )
                   ) : (
                     <span className="no-file">No file selected</span>
@@ -678,7 +672,7 @@ const Register = () => {
                   </small>
                 )}
                 <small id="validId-help" className="form-help">
-                  Upload a government-issued ID for verification
+                  Upload a government-issued ID (images only: JPG, PNG, etc.)
                 </small>
               </div>
             </>

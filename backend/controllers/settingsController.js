@@ -217,7 +217,7 @@ export const getMyAcceptedRequests = async (req, res) => {
 export const getMyIncomingRequests = async (req, res) => {
   try {
     const userId = req.user._id;
-    const requests = await ServiceRequest.find({ serviceProvider: userId, status: "Waiting" })
+    const requests = await ServiceRequest.find({ serviceProvider: userId, status: "Available" })
       .populate("user", "firstName lastName email")
       .populate("serviceProvider", "firstName lastName email")
       .sort({ createdAt: -1 });
@@ -269,7 +269,7 @@ export const completeServiceRequest = async (req, res) => {
       return res.status(400).json({ success: false, message: "Only working requests can be completed" });
     }
 
-    request.status = "Completed";
+    request.status = "Complete";
     await request.save();
 
     res.json({ success: true, message: "Service request marked as completed", request });

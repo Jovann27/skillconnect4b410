@@ -149,23 +149,24 @@
   text-transform: uppercase;
 }
 
-.status-working {
-  background-color: #007bff;
-  color: white;
-}
-
-.status-waiting {
+.status-open {
   background-color: #ffc107;
   color: black;
 }
 
+.status-working,
+.status-inprogress {
+  background-color: #242532;
+  color: white;
+}
+
 .status-completed {
-  background-color: #28a745;
+  background-color: #234555;
   color: white;
 }
 
 .status-cancelled {
-  background-color: #dc3545;
+  background-color: #593868;
   color: white;
 }
 
@@ -218,6 +219,13 @@
   background-color: #f8f9fa;
 }
 
+.tab-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: #999;
+  pointer-events: none;
+}
+
 /* Request Actions */
 .request-actions {
   display: flex;
@@ -259,6 +267,15 @@
 
 .action-btn.edit:hover {
   background-color: #e0a800;
+}
+
+.action-btn.chat {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.action-btn.chat:hover {
+  background-color: #138496;
 }
 
 .action-btn.cancel {
@@ -403,4 +420,93 @@
   .filter-input {
     max-width: none;
   }
+}
+
+/* Edit Modal */
+.edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.edit-modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.edit-modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  height: 80px;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.save-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  background-color: #218838;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
 }

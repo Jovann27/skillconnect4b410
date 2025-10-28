@@ -3,7 +3,12 @@ import User from "../models/userSchema.js";
 import Admin from "../models/adminSchema.js";
 
 const getTokenFromRequest = (req) => {
-  return req.cookies?.token || (req.headers.authorization && req.headers.authorization.split(" ")[1]);
+  // Check for Bearer token in Authorization header first
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    return req.headers.authorization.split(" ")[1];
+  }
+  // Fallback to cookie token
+  return req.cookies?.token;
 };
 
 export const isUserAuthenticated = async (req, res, next) => {

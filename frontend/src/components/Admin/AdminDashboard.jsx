@@ -58,20 +58,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="analytics-container">
-      <header className="admin-top-header">
-        <div className="admin-logo">
-          <img src="https://via.placeholder.com/40" alt="Logo" />
-          SkillConnect4B410
-        </div>
-        <nav className="admin-nav-menu">
-          <li><Link to="/" className="admin-nav-menu-link">HOME</Link></li>
-          <li><Link to="/about" className="admin-nav-menu-link">ABOUT</Link></li>
-          <li><Link to="/admin/dashboard" className={`admin-nav-menu-link ${isDashboardHome ? 'active' : ''}`}>DASHBOARD</Link></li>
-        </nav>
-        <button className="logout-header-btn" onClick={handleLogout}>
-          <FaSignOutAlt /> LOGOUT
-        </button>
-      </header>
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-avatar-container">

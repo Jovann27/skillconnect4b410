@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import api from "./api";
 import toast from "react-hot-toast";
+import { updateSocketToken } from "./utils/socket";
 
 const MainContext = createContext({
   isAuthorized: false,
@@ -23,6 +24,7 @@ export const MainProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [admin, setAdmin] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
   const initialized = useRef(false);
   const debounceTimer = useRef(null);
 
@@ -34,13 +36,22 @@ export const MainProvider = ({ children }) => {
       const response = await api.get("/user/me", { withCredentials: true });
       if (response.data && response.data.success && response.data.user) {
         console.log("MainContext - User data from API:", response.data.user);
-        setUser({
+        const userData = {
           ...response.data.user,
-          role: response.data.user.role || 'Community Member'
-        });
+          role: response.data.user.role || 'Community Member',
+          verified: response.data.user.verified || false
+        };
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
         setIsAuthorized(true);
         setTokenType("user");
         setAdmin(null);
+
+        // Update socket token for real-time chat
+        const token = localStorage.getItem("token");
+        if (token) {
+          updateSocketToken(token);
+        }
 
         // Store navigation function for later use if not provided immediately
         if (navigate && typeof navigate === 'function') {
@@ -88,8 +99,14 @@ export const MainProvider = ({ children }) => {
 
     // Clear localStorage
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     localStorage.removeItem("isAuthorized");
     localStorage.removeItem("tokenType");
+
+    // Clear socket connection
+    if (updateSocketToken) {
+      updateSocketToken("");
+    }
 
     setUser(null);
     setAdmin(null);
@@ -114,7 +131,6 @@ export const MainProvider = ({ children }) => {
     }
 
     debounceTimer.current = setTimeout(() => {
-      // First check if user data exists in localStorage
       const storedUser = JSON.parse(localStorage.getItem("user") || "null");
       const isAuth = localStorage.getItem("isAuthorized") === "true";
       const type = localStorage.getItem("tokenType");
@@ -122,17 +138,23 @@ export const MainProvider = ({ children }) => {
         console.log("MainContext: Using stored user data");
         setUser({
           ...storedUser,
-          role: storedUser.role || 'Community Member'
+          role: storedUser.role || 'Community Member',
+          verified: storedUser.verified || false
         });
         setIsAuthorized(true);
         setTokenType("user");
         setAdmin(null);
         setAuthLoaded(true);
+
+        // Update socket token for real-time chat
+        const token = localStorage.getItem("token");
+        if (token) {
+          updateSocketToken(token);
+        }
         return;
       }
 
       console.log("MainContext: No stored data, fetching from API");
-      // If no stored data, try to fetch from API
       fetchProfile();
     }, 100);
 

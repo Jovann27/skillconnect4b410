@@ -4,18 +4,11 @@ import User from "../models/userSchema.js";
 import ServiceRequest from "../models/serviceRequest.js";
 import Review from "../models/review.js";
 import verificationAppointmentSchema from "../models/verificationSchema.js";
-import Notification from "../models/notification.js";
+import { sendNotification } from "../utils/socketNotify.js";
+import Booking from "../models/booking.js";
+import Chat from "../models/chat.js";
+import { io, onlineUsers } from "../server.js";
 
-const sendNotification = async (userId, title, message, meta = {}) => {
-  try {
-    const n = await Notification.create({ user: userId, title, message, meta });
-    // Optionally: push real-time event (socket, email)
-    return n;
-  } catch (err) {
-    console.error("sendNotification error:", err.message);
-    return null;
-  }
-};
 
 
 export const applyProvider = catchAsyncError(async (req, res, next) => {
@@ -62,14 +55,48 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
     notes,
     location: location || null,
     targetProvider,
-    status: "Open",
+    status: "Available",
   });
 
+  // Find matching providers based on service type and budget within 200 of their rate
+  const matchingProviders = await User.find({
+    role: "Service Provider",
+    verified: true,
+    isOnline: true, // Only notify online providers
+    service: { $regex: typeOfWork, $options: "i" },
+  }).select("_id serviceRate");
+
+  for (const provider of matchingProviders) {
+    const providerRate = provider.serviceRate || 0;
+    const tolerance = 200;
+    const minBudget = providerRate - tolerance;
+    const maxBudget = providerRate + tolerance;
+
+    if (budget >= minBudget && budget <= maxBudget) {
+      await sendNotification(
+        provider._id,
+        "New Service Request",
+        `A new "${typeOfWork}" request has been posted.`,
+        { requestId: request._id, type: "service-request"}
+      );
+    }
+  }
+
+  // Notify the requester that their request was posted
+  await sendNotification(
+    req.user._id,
+    "Service Request Posted",
+    `Your "${typeOfWork}" request has been posted successfully.`,
+    { requestId: request._id, type: "service-request-posted"}
+  );
+
   // Optionally notify providers in the same category (not implemented here, but can query by skill)
+
+  // Emit socket event for real-time updates
+  io.emit("service-request-updated", { requestId: request._id, action: "created" });
+
   res.status(201).json({ success: true, request });
 });
-
-
 
 export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
@@ -78,7 +105,7 @@ export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   const booking = await Booking.findById(id);
   if (!booking) return next(new ErrorHandler("Booking not found", 404));
 
-  const allowed = ["Pending", "Confirmed", "InProgress", "Completed", "Cancelled"];
+  const allowed = ["Available", "Working", "Complete", "Cancelled"];
   if (!allowed.includes(status)) return next(new ErrorHandler("Invalid status", 400));
 
   if (![String(booking.requester), String(booking.provider)].includes(String(req.user._id))) {
@@ -91,6 +118,9 @@ export const updateBookingStatus = catchAsyncError(async (req, res, next) => {
   const otherUser = String(booking.requester) === String(req.user._id) ? booking.provider : booking.requester;
   await sendNotification(otherUser, `Booking ${status}`, `Booking ${booking._id} status changed to ${status}`);
 
+  // Emit socket event for real-time updates
+  io.emit("booking-updated", { bookingId: booking._id, action: "status-updated", newStatus: status });
+
   res.json({ success: true, booking });
 });
 
@@ -101,7 +131,7 @@ export const leaveReview = catchAsyncError(async (req, res, next) => {
 
   const booking = await Booking.findById(bookingId);
   if (!booking) return next(new ErrorHandler("Booking not found", 404));
-  if (booking.status !== "Completed") return next(new ErrorHandler("Booking not completed yet", 400));
+  if (booking.status !== "Complete") return next(new ErrorHandler("Booking not completed yet", 400));
   // Only participants can leave review (requester or provider)
   if (![String(booking.requester), String(booking.provider)].includes(String(req.user._id))) {
     return next(new ErrorHandler("Not authorized", 403));
@@ -115,10 +145,23 @@ export const leaveReview = catchAsyncError(async (req, res, next) => {
     comments,
   });
 
+  const existing = await Review.findOne({
+    booking: bookingId,
+    reviewer: req.user._id,
+  });
+  if (existing) return next(new ErrorHandler("You already reviewed this booking", 400));
+
+
   await sendNotification(review.reviewee, "New Review", `You received a ${rating}-star review.`);
+
+  // Emit socket event for real-time updates
+  io.emit("review-updated", { bookingId: booking._id, action: "review-added" });
 
   res.status(201).json({ success: true, review });
 });
+
+
+
 
 export const getServiceRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
@@ -126,8 +169,8 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
   // Get provider's skills for filtering
   const providerSkills = req.user.skills || [];
 
-  // First, let's see all open requests
-  const allRequests = await ServiceRequest.find({ status: "Open" })
+  // First, let's see all available requests
+  const allRequests = await ServiceRequest.find({ status: "Available" })
     .populate({
       path: 'requester',
       select: 'firstName lastName username email phone',
@@ -150,7 +193,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
 
   // Also include requests specifically targeted to this provider
   const targetedRequests = await ServiceRequest.find({
-    status: "Open",
+    status: "Available",
     targetProvider: req.user._id
   })
   .populate({
@@ -167,7 +210,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
     ...filteredRequests.filter(r => !targetedIds.includes(r._id.toString()))
   ];
 
-  // For testing purposes, if no requests match skills, return all open requests
+  // For testing purposes, if no requests match skills, return all working requests
   let finalRequests = combinedRequests;
   if (combinedRequests.length === 0 && allRequests.length > 0) {
     finalRequests = allRequests;
@@ -178,7 +221,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
     requests: finalRequests,
     debug: {
       totalRequests: finalRequests.length,
-      allOpenRequests: allRequests.length,
+      allWorkingRequests: allRequests.length,
       filteredRequests: filteredRequests.length,
       targetedRequests: targetedRequests.length,
       userId: req.user._id,
@@ -194,30 +237,49 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
 export const getUserServiceRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const requests = await ServiceRequest.find({ requester: req.user._id })
+    .populate('serviceProvider', 'firstName lastName username')
     .sort({ createdAt: -1 });
   res.status(200).json({ success: true, requests });
 });
 
-export const cancelServiceRequest = catchAsyncError(async (req, res, next) => {
-  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+export const deleteServiceRequest = catchAsyncError(async (req, res, next) => {
+  if (!req.user) {
+    return next(new ErrorHandler("Unauthorized", 401));
+  }
+
   const { id } = req.params;
+  if (!id || id.length !== 24) {
+    return next(new ErrorHandler("Invalid request ID", 400));
+  }
+
   const request = await ServiceRequest.findById(id);
-  if (!request) return next(new ErrorHandler("Service Request not found", 404));
-  if (String(request.requester) !== String(req.user._id)) return next(new ErrorHandler("Not authorized", 403));
-  if (request.status !== "Open") return next(new ErrorHandler("Request cannot be cancelled", 400));
+  if (!request) {
+    return next(new ErrorHandler("Service request not found", 404));
+  }
+  if (
+    String(request.requester) !== String(req.user._id) &&
+    req.user.role !== "admin"
+  ) {
+    return next(new ErrorHandler("Not authorized to delete this request", 403));
+  }
+  await request.deleteOne();
 
-  request.status = "Cancelled";
-  await request.save();
+  // Emit socket event for real-time updates
+  io.emit("service-request-updated", { requestId: request._id, action: "deleted" });
 
-  res.status(200).json({ success: true, message: "Request cancelled" });
+  res.status(200).json({
+    success: true,
+    message: "Service request deleted successfully",
+  });
 });
+
 
 export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { id } = req.params;
   const request = await ServiceRequest.findById(id).populate('requester');
   if (!request) return next(new ErrorHandler("Service Request not found", 404));
-  if (request.status !== "Open") return next(new ErrorHandler("Request is not open", 400));
+  if (request.status !== "Available") return next(new ErrorHandler("Request is not available", 400));
 
   // Ensure provider
   const provider = await User.findById(req.user._id);
@@ -229,11 +291,11 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
     requester: request.requester._id,
     provider: provider._id,
     serviceRequest: request._id,
-    status: "Pending",
+    status: "Working",
   });
 
-  // Mark request assigned & set provider
-  request.status = "Assigned";
+  // Mark request working & set provider
+  request.status = "Working";
   request.serviceProvider = provider._id;
   await request.save();
 
@@ -245,14 +307,21 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
     { bookingId: booking._id }
   );
 
+  // Emit socket events for real-time updates
+  io.emit("service-request-updated", { requestId: request._id, action: "accepted" });
+  io.emit("booking-updated", { bookingId: booking._id, action: "created" });
+
   res.status(201).json({ success: true, booking, request });
 });
 
 export const getBookings = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
   const bookings = await Booking.find({
-    $or: [{ requester: req.user._id }, { provider: req.user._id }]
-  }).populate('requester provider', 'firstName lastName');
+    provider: req.user._id
+  }).populate('requester provider', 'firstName lastName')
+    .populate('serviceRequest');
+
   res.status(200).json({ success: true, bookings });
 });
 
@@ -309,16 +378,23 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
   const provider = await User.findById(req.user._id);
   if (!provider || provider.role !== "Service Provider") return next(new ErrorHandler("Not a provider", 403));
   if (!provider.verified) return next(new ErrorHandler("Provider not verified", 403));
+  if (!provider.isOnline) {
+    return res.status(200).json({
+      success: true,
+      requests: [],
+      message: "You are currently offline and cannot receive new requests."
+    });
+  }
 
   const providerRate = provider.serviceRate || 0;
   const providerService = provider.service || '';
 
-  const tolerance = providerRate * 0.2;
+  const tolerance = 200;
   const minBudget = providerRate - tolerance;
   const maxBudget = providerRate + tolerance;
 
   const requests = await ServiceRequest.find({
-    status: "Open",
+    status: "Available",
     budget: { $gte: minBudget, $lte: maxBudget },
     typeOfWork: new RegExp(providerService, 'i') // Case insensitive match
   })
@@ -328,7 +404,7 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
     model: 'User'
   })
   .sort({ createdAt: -1 })
-  .limit(10); 
+  .limit(10);
 
   res.status(200).json({
     success: true,
@@ -338,7 +414,278 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
       providerService,
       minBudget,
       maxBudget,
-      totalRequests: requests.length
+      totalRequests: requests.length,
+      isOnline: provider.isOnline
     }
+  });
+});
+
+export const getUserServices = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const user = await User.findById(req.user._id).select("services");
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  res.json({ success: true, services: user.services });
+});
+
+export const updateServiceRequest = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const { id } = req.params;
+
+  const request = await ServiceRequest.findById(id);
+  if (!request) return next(new ErrorHandler("Service request not found", 404));
+
+  if (String(request.requester) !== String(req.user._id) && req.user.role !== "admin") {
+    return next(new ErrorHandler("Not authorized to update this request", 403));
+  }
+
+  // Only allow updates if status is Available or Waiting
+  if (request.status !== "Available" && request.status !== "Waiting") {
+    return next(new ErrorHandler("Cannot edit request that is in progress", 400));
+  }
+
+  const { name, address, phone, typeOfWork, time, budget, notes, location } = req.body;
+
+  request.name = name || request.name;
+  request.address = address || request.address;
+  request.phone = phone || request.phone;
+  request.typeOfWork = typeOfWork || request.typeOfWork;
+  request.time = time || request.time;
+  request.budget = budget || request.budget;
+  request.notes = notes || request.notes;
+  request.location = location || request.location;
+
+  await request.save();
+
+  // Emit socket event for real-time updates
+  io.emit("service-request-updated", { requestId: request._id, action: "updated" });
+
+  res.status(200).json({ success: true, request });
+});
+
+export const getChatHistory = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const userId = req.user._id;
+
+  // Find bookings where the user is involved (as requester or provider)
+  const bookings = await Booking.find({
+    $or: [
+      { requester: userId },
+      { provider: userId }
+    ]
+  }).select('_id');
+
+  const bookingIds = bookings.map(b => b._id);
+
+  // Fetch chats for these bookings
+  const chats = await Chat.find({
+    appointment: { $in: bookingIds }
+  })
+  .populate('sender', 'firstName lastName')
+  .populate('appointment', 'requester provider')
+  .sort({ createdAt: 1 }); // Sort by time ascending
+
+  // Group chats by appointment for easier display
+  const chatHistory = chats.reduce((acc, chat) => {
+    const appointmentId = chat.appointment._id.toString();
+    if (!acc[appointmentId]) {
+      acc[appointmentId] = {
+        appointmentId,
+        participants: {
+          requester: chat.appointment.requester,
+          provider: chat.appointment.provider
+        },
+        messages: []
+      };
+    }
+    acc[appointmentId].messages.push({
+      id: chat._id,
+      sender: chat.sender,
+      message: chat.message,
+      timestamp: chat.createdAt,
+      status: chat.status,
+      seenBy: chat.seenBy
+    });
+    return acc;
+  }, {});
+
+  res.status(200).json({
+    success: true,
+    chatHistory: Object.values(chatHistory)
+  });
+});
+
+export const sendMessage = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const { appointmentId, message } = req.body;
+  if (!appointmentId || !message) {
+    return next(new ErrorHandler("Appointment ID and message are required", 400));
+  }
+
+  // Verify user has access to this appointment
+  const booking = await Booking.findOne({
+    _id: appointmentId,
+    $or: [
+      { requester: req.user._id },
+      { provider: req.user._id }
+    ]
+  });
+
+  if (!booking) {
+    return next(new ErrorHandler("Access denied to this chat", 403));
+  }
+
+  // Save message to database
+  const chatMessage = await Chat.create({
+    appointment: appointmentId,
+    sender: req.user._id,
+    message: message.trim(),
+    status: 'sent'
+  });
+
+  // Populate sender info
+  await chatMessage.populate('sender', 'firstName lastName');
+
+  // Emit socket event for real-time update
+  io.to(`chat-${appointmentId}`).emit("new-message", chatMessage);
+
+  // Send notification to other user if they're online
+  const otherUserId = booking.requester.toString() === req.user._id.toString()
+    ? booking.provider.toString()
+    : booking.requester.toString();
+
+  const otherSocketId = onlineUsers.get(otherUserId);
+  if (otherSocketId) {
+    io.to(otherSocketId).emit("message-notification", {
+      appointmentId,
+      message: chatMessage,
+      from: req.user.firstName + " " + req.user.lastName
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    message: chatMessage
+  });
+});
+
+export const getChatList = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const userId = req.user._id;
+
+  // Find bookings where the user is involved
+  const bookings = await Booking.find({
+    $or: [
+      { requester: userId },
+      { provider: userId }
+    ]
+  })
+  .populate('requester', 'firstName lastName')
+  .populate('provider', 'firstName lastName')
+  .populate('serviceRequest', 'name typeOfWork')
+  .sort({ updatedAt: -1 });
+
+  // Get chat counts and last messages for each booking
+  const chatList = await Promise.all(bookings.map(async (booking) => {
+    const messageCount = await Chat.countDocuments({ appointment: booking._id });
+    const lastMessage = await Chat.findOne({ appointment: booking._id })
+      .populate('sender', 'firstName lastName')
+      .sort({ createdAt: -1 });
+
+    const otherUser = booking.requester._id.toString() === userId.toString()
+      ? booking.provider
+      : booking.requester;
+
+    return {
+      appointmentId: booking._id,
+      otherUser,
+      serviceRequest: booking.serviceRequest,
+      status: booking.status,
+      lastMessage: lastMessage ? {
+        message: lastMessage.message,
+        sender: lastMessage.sender,
+        timestamp: lastMessage.createdAt,
+        status: lastMessage.status
+      } : null,
+      messageCount,
+      unreadCount: await Chat.countDocuments({
+        appointment: booking._id,
+        sender: { $ne: userId },
+        status: { $ne: 'seen' },
+        'seenBy.user': { $ne: userId }
+      })
+    };
+  }));
+
+  res.status(200).json({
+    success: true,
+    chatList
+  });
+});
+
+export const markMessagesAsSeen = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const { appointmentId } = req.params;
+  const userId = req.user._id;
+
+  // Verify user has access to this appointment
+  const booking = await Booking.findOne({
+    _id: appointmentId,
+    $or: [
+      { requester: userId },
+      { provider: userId }
+    ]
+  });
+
+  if (!booking) {
+    return next(new ErrorHandler("Access denied to this chat", 403));
+  }
+
+  // Update all messages in this chat that weren't sent by this user
+  await Chat.updateMany(
+    {
+      appointment: appointmentId,
+      sender: { $ne: userId },
+      'seenBy.user': { $ne: userId }
+    },
+    {
+      $addToSet: {
+        seenBy: {
+          user: userId,
+          seenAt: new Date()
+        }
+      },
+      status: 'seen'
+    }
+  );
+
+  // Emit socket event to notify sender
+  const messages = await Chat.find({
+    appointment: appointmentId,
+    sender: { $ne: userId }
+  }).populate('sender');
+
+  messages.forEach(async (message) => {
+    if (message.sender._id.toString() !== userId.toString()) {
+      const senderSocketId = onlineUsers.get(message.sender._id.toString());
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message-seen-update", {
+          messageId: message._id,
+          seenBy: req.user.firstName + " " + req.user.lastName,
+          appointmentId
+        });
+      }
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Messages marked as seen"
   });
 });

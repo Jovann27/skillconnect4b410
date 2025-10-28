@@ -30,10 +30,16 @@ export const register = catchAsyncError(async (req, res, next) => {
   if (isEmail) return next(new ErrorHandler("Email already exists", 400));
 
   const validIdFile = req.files?.validId;
-  if (!validIdFile) return next(new ErrorHandler("Valid ID is required", 400));
+  let uploadedFiles = {};
 
-  const uploadedFiles = {};
-  uploadedFiles.validId = await uploadToCloudinary(validIdFile.tempFilePath, "skillconnect/validIds");
+  // Only require validId for Service Providers
+  if (role === "Service Provider") {
+    if (!validIdFile) return next(new ErrorHandler("Valid ID is required for Service Providers", 400));
+    if (!validIdFile.mimetype.startsWith("image/")) {
+      return next(new ErrorHandler("Valid ID must be an image file (JPG, PNG, etc.)", 400));
+    }
+    uploadedFiles.validId = await uploadToCloudinary(validIdFile.tempFilePath, "skillconnect/validIds");
+  }
 
   if (req.files?.profilePic) uploadedFiles.profilePic = await uploadToCloudinary(req.files.profilePic.tempFilePath, "skillconnect/profiles");
 
@@ -104,7 +110,7 @@ export const getMyProfile = async (req, res) => {
 export const updateProfile = catchAsyncError(async (req, res, next) => {
   const userId = req.user._id;
   const updates = req.body;
-  
+
   delete updates.password;
   delete updates._id;
   delete updates.createdAt;
@@ -134,6 +140,10 @@ export const updateProfile = catchAsyncError(async (req, res, next) => {
 
   // Handle valid ID upload if provided
   if (req.files?.validId) {
+    // Validate that validId is an image
+    if (!req.files.validId.mimetype.startsWith("image/")) {
+      return next(new ErrorHandler("Valid ID must be an image file (JPG, PNG, etc.)", 400));
+    }
     const validIdUrl = await uploadToCloudinary(req.files.validId.tempFilePath, "skillconnect/validIds");
     updates.validId = validIdUrl;
   }
@@ -167,5 +177,32 @@ export const updateProfile = catchAsyncError(async (req, res, next) => {
     success: true,
     message: "Profile updated successfully",
     user: updatedUser
+  });
+});
+
+export const getSignedValidIdUrl = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
+
+  const user = await User.findById(req.user._id);
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  if (!user.validId) return next(new ErrorHandler("No valid ID found", 404));
+
+  // Extract public_id from the URL
+  const urlParts = user.validId.split('/');
+  const publicIdWithExtension = urlParts.slice(-1)[0]; // e.g., "ijef1xfia9hmg6xlkz6y.pdf"
+  const publicId = publicIdWithExtension.split('.')[0]; // e.g., "ijef1xfia9hmg6xlkz6y"
+  const fullPublicId = `skillconnect/validIds/${publicId}`; // Assuming folder structure
+
+  // Generate signed URL for the validId
+  const signedUrl = cloudinary.v2.utils.private_download_url(fullPublicId, 'pdf', {
+    resource_type: 'raw',
+    type: 'private',
+    expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour
+  });
+
+  res.status(200).json({
+    success: true,
+    signedUrl
   });
 });

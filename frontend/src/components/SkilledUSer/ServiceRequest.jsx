@@ -227,7 +227,7 @@ const ServiceRequestForm = () => {
         budget: formData.budget,
         notes: formData.notes,
         location: markerPosition,
-        status: 'Open'
+        status: 'Available'
       };
 
       navigate('/user/waiting-for-worker', { state: { requestData } });
@@ -357,17 +357,13 @@ const ServiceRequestForm = () => {
 
         <div className="requestForm-group">
           <label>Time</label>
-          <select
+          <input
+            type="time"
             name="time"
             value={formData.time}
             onChange={handleChange}
             required
-          >
-            <option value="">-- Select Time --</option>
-            <option value="now">Now</option>
-            <option value="later">Later</option>
-            <option value="schedule">Schedule</option>
-          </select>
+          />
         </div>
 
         <button type="submit" className="requestForm-submitBtn">

@@ -10,7 +10,7 @@ const serviceRequestSchema = new mongoose.Schema({
   budget: { type: Number, default: 0 },
   notes: { type: String, default: ""},
   location: { type: { lat: Number, lng: Number }, default: null },
-  status: { type: String, enum: ["Open", "Assigned", "Cancelled", "Completed"], default: "Open" },
+  status: { type: String, enum: ["Available", "Working", "Complete", "Cancelled"], default: "Available" },
   serviceProvider: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   targetProvider: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   trackingId: { type: String, default: () => `REQ-${Date.now().toString(36)}` },
