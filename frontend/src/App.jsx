@@ -6,6 +6,7 @@ import {
   Navigate,
   useLocation,
   useNavigate,
+  Outlet,
 } from "react-router-dom";
 import { useMainContext } from "./mainContext";
 import NotificationListener from "./components/NotificationListener";
@@ -15,7 +16,6 @@ import "react-toastify/dist/ReactToastify.css";
 // Layout
 import Navbar from "./components/Layout/Navbar";
 import Footer from "./components/Layout/Footer";
-import ChatIcon from "./components/ChatIcon";
 
 // Home pages
 import Home from "./components/Home/Home";
@@ -38,10 +38,8 @@ import SytemAnalytics from "./components/Admin/SytemAnalytics";
 
 // User pages
 import MyService from "./components/SkilledUSer/MyService";
-import UserDashboard from "./components/SkilledUSer/UserDashboard";
 import ServiceRequest from "./components/SkilledUSer/ServiceRequest";
 import UserWorkRecords from "./components/SkilledUSer/UserRecords";
-import Help from "./components/SkilledUSer/Help";
 import UserRequest from "./components/SkilledUSer/UsersRequest";
 import ManageProfile from "./components/SkilledUSer/ManageProfile";
 import WaitingForWorker from "./components/SkilledUSer/WaitingForWorker";
@@ -54,8 +52,8 @@ const AppContent = () => {
   const { isAuthorized, tokenType, authLoaded, user, admin } = useMainContext();
   const location = useLocation();
   const navigate = useNavigate();
-const isAdmin = isAuthorized && tokenType === "admin";
-const isUser = isAuthorized && tokenType === "user";
+  const isAdmin = isAuthorized && tokenType === "admin";
+  const isUser = isAuthorized && tokenType === "user";
 
 
 
@@ -63,7 +61,7 @@ const isUser = isAuthorized && tokenType === "user";
     if (!authLoaded) return;
 
     if (isAuthorized && location.pathname === "/") {
-      let targetPath = isAdmin ? "/admin/dashboard" : "/user/my-service";
+      const targetPath = isAdmin ? "/admin/analytics" : "/user/my-service";
 
       if (location.pathname !== targetPath) {
         navigate(targetPath, { replace: true });
@@ -86,7 +84,7 @@ const isUser = isAuthorized && tokenType === "user";
           path="/admin/register"
           element={
             isAuthorized && isAdmin ? (
-              <Navigate to="/admin/dashboard" />
+              <Navigate to="/admin/analytics" />
             ) : (
               <AdminRegister />
             )
@@ -96,13 +94,13 @@ const isUser = isAuthorized && tokenType === "user";
         {/* User Routes */}
         <Route
           path="/user/*"
-          element={isUser ? <UserDashboard /> : <Navigate to="/login" />}
+          element={isUser ? <Outlet /> : <Navigate to="/login" />}
         >
           <Route index element={<MyService />} />
+          <Route path="dashboard" element={<MyService />} />
           <Route path="my-service" element={<MyService />} />
           <Route path="request-service" element={<ServiceRequest />} />
           <Route path="records" element={<UserWorkRecords />} />
-          <Route path="help" element={<Help />} />
           <Route path="users-request" element={<UserRequest />} />
           <Route path="manage-profile" element={<ManageProfile />} />
           <Route path="waiting-for-worker" element={<WaitingForWorker />} />
@@ -130,9 +128,6 @@ const isUser = isAuthorized && tokenType === "user";
 
       {/* Real-time notification listener */}
       <NotificationListener user={isUser ? user : admin} />
-
-      {/* Chat Icon for authenticated users */}
-      <ChatIcon />
     </>
   );
 };

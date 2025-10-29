@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMainContext } from '../mainContext';
 import api from '../api';
 import socket from '../utils/socket';
 import './ChatIcon.css';
+import { FaFacebookMessenger, FaLocationArrow  } from 'react-icons/fa';
 
 const ChatIcon = () => {
   const { isAuthorized, tokenType, user } = useMainContext();
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState('list'); // 'list' or 'chat'
+  const [view, setView] = useState('list'); // 'list' or 'chat' or 'help'
   const [chatList, setChatList] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -16,6 +17,9 @@ const ChatIcon = () => {
   const [error, setError] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportLoading, setSupportLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -52,6 +56,26 @@ const ChatIcon = () => {
       console.error('Error marking messages as seen:', err);
     }
   };
+
+  const fetchHelpTopics = async () => {
+    setHelpLoading(true);
+    setHelpError(null);
+    try {
+      const response = await api.get("/help/help");
+      setHelpTopics(response.data.topics);
+    } catch (error) {
+      console.error("Error fetching help topics:", error);
+      setHelpError("Failed to load help topics");
+    } finally {
+      setHelpLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchHelpTopics();
+    }
+  }, [isOpen]);
 
   // Socket event listeners
 
@@ -232,6 +256,63 @@ const ChatIcon = () => {
     setSelectedChat(null);
     setMessages([]);
     setTypingUsers(new Set());
+    setExpandedTopic(null);
+    setSupportMessages([]);
+  };
+
+  const sendSupportMessage = () => {
+    if (!supportMessage.trim()) return;
+
+    const userMsg = { sender: 'user', message: supportMessage.trim(), timestamp: new Date() };
+    setSupportMessages(prev => [...prev, userMsg]);
+    setSupportMessage('');
+
+    // Simulate support typing
+    setSupportLoading(true);
+    setTimeout(() => {
+      const supportResponse = getSupportResponse(userMsg.message);
+      const supportMsg = { sender: 'support', message: supportResponse, timestamp: new Date() };
+      setSupportMessages(prev => [...prev, supportMsg]);
+      setSupportLoading(false);
+    }, 1000); // 1 second delay
+  };
+
+  const getSupportResponse = (userMessage) => {
+    const lowerMsg = userMessage.toLowerCase();
+    if (lowerMsg.includes('password')) {
+      return "For password issues, please visit the Account Settings page or contact us at skillconnect4b410@gmail.com.";
+    }
+    if (lowerMsg.includes('booking')) {
+      return "To book a service, navigate to the skilled users list and select a service. If you need help, check our help center.";
+    }
+    if (lowerMsg.includes('account')) {
+      return "For account-related issues, please check your profile settings or contact us at skillconnect4b410@gmail.com.";
+    }
+    if (lowerMsg.includes('technical') || lowerMsg.includes('bug') || lowerMsg.includes('report')) {
+      return "For technical issues or bugs, please provide details about what happened and your device/browser info. We'll investigate and get back to you.";
+    }
+    if (lowerMsg.includes('help') || lowerMsg.includes('support') || lowerMsg.includes('other') || lowerMsg.includes('contact')) {
+      return "I'm here to help! Please describe your issue in detail.";
+    }
+    return "Thank you for contacting support. Our team will respond shortly. For urgent issues, email skillconnect4b410@gmail.com.";
+  };
+
+  const handleSupportOption = (option) => {
+    const messageMap = {
+      password: 'I need help with password reset',
+      booking: 'I need help with booking a service',
+      account: 'I have account issues',
+      technical: 'I have a technical issue or found a bug',
+      other: 'I have another support request'
+    };
+    const userMsg = { sender: 'user', message: messageMap[option], timestamp: new Date() };
+    setSupportMessages([userMsg]);
+    setSupportLoading(true);
+    setTimeout(() => {
+      const supportMsg = { sender: 'support', message: getSupportResponse(userMsg.message), timestamp: new Date() };
+      setSupportMessages([userMsg, supportMsg]);
+      setSupportLoading(false);
+    }, 1000);
   };
 
   const totalUnreadCount = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
@@ -239,12 +320,12 @@ const ChatIcon = () => {
   return (
     <>
       {/* Chat Icon */}
-      <div className="chat-icon" onClick={toggleChat}>
-        <span className="chat-icon-text">💬</span>
+      <button className="navbar-icon-btn" onClick={toggleChat}>
+        <span className="chat-icon-text"><FaFacebookMessenger /></span>
         {totalUnreadCount > 0 && (
           <span className="chat-badge">{totalUnreadCount}</span>
         )}
-      </div>
+      </button>
 
       {/* Chat Panel */}
       {isOpen && (
@@ -259,6 +340,11 @@ const ChatIcon = () => {
                 <span className={`status-indicator ${selectedChat?.status?.toLowerCase()}`}>
                   {selectedChat?.status}
                 </span>
+              </>
+            ) : view === 'help' ? (
+              <>
+                <button className="back-btn" onClick={() => setView('list')}>←</button>
+                <h3>Help Center</h3>
               </>
             ) : (
               <>
@@ -278,6 +364,13 @@ const ChatIcon = () => {
                 <p>No chats available.</p>
               ) : (
                 <div className="chat-list">
+                  <div className="chat-item" onClick={() => setView('help')}>
+                    <div className="chat-item-header">
+                      <h4>Help Center</h4>
+                      <small>Support</small>
+                    </div>
+                    <p className="last-message">Get help with your questions</p>
+                  </div>
                   {chatList.map((chat) => (
                     <div
                       key={chat.appointmentId}
@@ -309,7 +402,7 @@ const ChatIcon = () => {
                   ))}
                 </div>
               )
-            ) : (
+            ) : view === 'chat' ? (
               <div className="chat-messages">
                 {error && <p className="error">{error}</p>}
 
@@ -325,7 +418,7 @@ const ChatIcon = () => {
                       <div className={`message ${msg.sender._id === user._id ? 'own' : 'other'}`}>
                         {msg.sender._id !== user._id && (
                           <img
-                            src={msg.sender.profileImage || 'https://via.placeholder.com/35?text=👤'}
+                            src={msg.sender.profileImage}
                             alt={`${msg.sender.firstName} ${msg.sender.lastName}`}
                             className="message-avatar"
                           />
@@ -352,11 +445,6 @@ const ChatIcon = () => {
                 </div>
 
                 <div className="message-input">
-                  <div className="input-icons">
-                    <button className="icon-btn">🎤</button>
-                    <button className="icon-btn">📷</button>
-                    <button className="icon-btn">📎</button>
-                  </div>
                   <input
                     type="text"
                     value={newMessage}
@@ -372,6 +460,80 @@ const ChatIcon = () => {
                     className="send-btn"
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || loading}
+                  >
+                    <FaLocationArrow />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="chat-messages">
+                <div className="messages-container">
+                  {supportMessages.map((msg, index) => (
+                    <div key={index} className={`message-wrapper ${msg.sender === 'user' ? 'own' : 'other'}`}>
+                      <div className={`message ${msg.sender === 'user' ? 'own' : 'other'}`}>
+                        <div className="message-content">
+                          <span>{msg.message}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {supportLoading && (
+                    <div className="typing-indicator">
+                      <span>Support is typing...</span>
+                    </div>
+                  )}
+
+                  {supportMessages.length === 0 && !supportLoading && (
+                    <div className="message-wrapper other">
+                      <div className="message other">
+                        <div className="message-content">
+                          <span>Welcome to Help Center! How can we assist you today?</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                            <button onClick={() => handleSupportOption('password')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Password Reset</button>
+                            <button onClick={() => handleSupportOption('booking')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Booking Help</button>
+                            <button onClick={() => handleSupportOption('account')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Account Issues</button>
+                            <button onClick={() => handleSupportOption('technical')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Technical Issues</button>
+                            <button onClick={() => handleSupportOption('other')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Other</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {supportMessages.length > 0 && supportMessages[supportMessages.length - 1].sender === 'support' && !supportLoading && (
+                    <div className="message-wrapper other">
+                      <div className="message other">
+                        <div className="message-content">
+                          <span>Is there anything else I can help you with?</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                            <button onClick={() => handleSupportOption('password')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Password Reset</button>
+                            <button onClick={() => handleSupportOption('booking')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Booking Help</button>
+                            <button onClick={() => handleSupportOption('account')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Account Issues</button>
+                            <button onClick={() => handleSupportOption('technical')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Technical Issues</button>
+                            <button onClick={() => handleSupportOption('other')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Other</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <div className="message-input">
+                  <input
+                    type="text"
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendSupportMessage()}
+                    placeholder="Type your message to support..."
+                    disabled={supportLoading}
+                  />
+                  <button
+                    className="send-btn"
+                    onClick={sendSupportMessage}
+                    disabled={!supportMessage.trim() || supportLoading}
                   >
                     📤
                   </button>

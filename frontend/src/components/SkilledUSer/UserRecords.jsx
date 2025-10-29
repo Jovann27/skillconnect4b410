@@ -160,11 +160,6 @@ const UserWorkRecord = () => {
 
   // Popup handlers
   const handleRequestClick = (request) => {
-    // Only open popup for available requests
-    if (request.status !== "Available" && request.status !== "Waiting" && request.status !== "Open") {
-      showNotification("Popup is only available for available requests.", "info", 3000, "Info");
-      return;
-    }
     setSelectedRequest(request);
     setPopupOpen(true);
   };
@@ -200,17 +195,17 @@ const UserWorkRecord = () => {
     setEditModalOpen(true);
   };
 
-  const handleDeleteRequest = async (request, e) => {
+  const handleCancelRequest = async (request, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this request?")) return;
+    if (!window.confirm("Are you sure you want to cancel this request?")) return;
 
     try {
-      await api.delete(`/user/service-request/${request._id}/delete`);
-      showNotification("Request deleted successfully!", "success", 3000, "Success");
+      await api.cancel(`/user/service-request/${request._id}/cancel`);
+      showNotification("Request cancelled successfully!", "success", 3000, "Success");
       fetchMyRequests();
     } catch (err) {
       console.error(err);
-      showNotification("Failed to delete request. Please try again.", "error", 4000, "Error");
+      showNotification("Failed to cancel request. Please try again.", "error", 4000, "Error");
     }
   };
 
@@ -252,6 +247,26 @@ const UserWorkRecord = () => {
     } catch (err) {
       console.error(err);
       showNotification("Failed to update request. Please try again.", "error", 4000, "Error");
+    }
+  };
+
+  const handleDeleteRequest = async (request) => {
+    if (myRequests.find(r => r._id === request._id)) {
+      // My request, cancel
+      if (!window.confirm("Are you sure you want to cancel this request?")) return;
+      try {
+        await api.cancel(`/user/service-request/${request._id}/cancel`);
+        showNotification("Request cancelled successfully!", "success", 3000, "Success");
+        fetchMyRequests();
+        handleClosePopup();
+      } catch (err) {
+        console.error(err);
+        showNotification("Failed to cancel request. Please try again.", "error", 4000, "Error");
+      }
+    } else {
+      // Available request, decline
+      showNotification("Request declined.", "info", 3000, "Info");
+      handleClosePopup();
     }
   };
 
@@ -371,8 +386,9 @@ const UserWorkRecord = () => {
           Available Request ({filteredRequests.length})
         </button>
         <button
-          className={`tab-button ${activeTab === "work-records" ? "active" : ""}`}
-          onClick={() => setActiveTab("work-records")}
+          className={`tab-button ${activeTab === "work-records" ? "active" : ""} ${user.role !== "Service Provider" ? "disabled" : ""}`}
+          onClick={user.role === "Service Provider" ? () => setActiveTab("work-records") : undefined}
+          disabled={user.role !== "Service Provider"}
         >
           My Work records ({filteredRecords.length})
         </button>
@@ -422,7 +438,7 @@ const UserWorkRecord = () => {
                         ) : (
                           <button className="action-btn edit" onClick={(e) => handleEditRequest(request, e)}>Edit</button>
                         )}
-                        <button className="action-btn delete" onClick={(e) => handleDeleteRequest(request, e)}>Delete</button>
+                        <button className="action-btn delete" onClick={(e) => handleCancelRequest(request, e)}>Cancel</button>
                       </div>
                     </td>
                   </tr>

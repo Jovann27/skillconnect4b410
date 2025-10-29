@@ -1,30 +1,26 @@
-/* Chat Icon Styles */
 .chat-icon {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
+  position: relative;
+  width: 40px;
+  height: 40px;
   display: flex;
+  padding: 3px 2px 0 2px;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  border-radius: 20px;
   transition: all 0.3s ease;
+  margin-right: 10px;
+  color: #ffffff;
+  font-size: 20px;
 }
 
 .chat-icon:hover {
   transform: scale(1.1);
+  background: #e4e3e3;
+  color: #111111;
   box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
 }
 
-.chat-icon-text {
-  color: white;
-  font-size: 24px;
-}
 
 .chat-badge {
   position: absolute;
@@ -44,12 +40,11 @@
 
 .chat-panel {
   position: fixed;
-  bottom: 90px;
-  right: 20px;
+  top: 70px;
+  right: 0px;
   width: 380px;
   height: 550px;
-  background: #ffffff;
-  border-radius: 15px;
+  background: #f3cde3;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -58,26 +53,26 @@
 }
 
 .chat-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #ea6692 0%, #e667c6 100%);
   color: white;
-  padding: 15px 20px;
+  padding: 15px 20px; 
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 15px 15px 0 0;
 }
 
 .chat-header h3 {
-  margin: 0;
-  font-size: 18px;
+  margin: 0 0 0 20px;
+  font-size: 20px;
   font-weight: 600;
+  text-shadow: 0 2px 3px rgba(24, 23, 23, 0.623);
 }
 
 .back-btn, .close-btn {
   background: none;
   border: none;
   color: white;
-  font-size: 20px;
+  font-size: 26px;
   cursor: pointer;
   padding: 5px;
   width: 35px;
@@ -86,11 +81,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background-color 0.2s;
+  transition: transform 0.2s;
 }
 
 .back-btn:hover, .close-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.2);
+  text-shadow: 0 2px 3px rgba(24, 23, 23, 0.623);
 }
 
 .status-indicator {
@@ -225,7 +221,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #1a1a1a;
+  background: #dd8bbb4b;
 }
 
 .message-wrapper {
@@ -272,6 +268,8 @@
 .message-content {
   padding: 8px 12px;
   border-radius: 18px;
+  width: 160px;
+  margin: auto;
   word-wrap: break-word;
   position: relative;
   font-size: 14px;
@@ -285,8 +283,9 @@
 }
 
 .message.other .message-content {
-  background: #e5e5ea;
-  color: #333;
+  background: #ffffff;
+  color: #000000;
+
   border-bottom-left-radius: 4px;
 }
 
@@ -317,7 +316,7 @@
   gap: 10px;
   padding: 10px 15px;
   border-top: 1px solid #333;
-  background: #2c2c2c;
+  background: #dd8bbbad;
 }
 
 .input-icons {
@@ -346,17 +345,17 @@
   border-radius: 20px;
   outline: none;
   font-size: 14px;
-  background: #1a1a1a;
-  color: #fff;
+  background: #c9c9c9;
+  color: #000000;
   transition: border-color 0.2s;
 }
 
 .message-input input:focus {
-  border-color: #007aff;
+  border-color: #000000;
 }
 
 .message-input input::placeholder {
-  color: #999;
+  color: #474646;
 }
 
 .send-btn {

@@ -856,7 +856,6 @@ select.register-input {
   border-color: #28a745;
 }
 
-/* Password toggle buttons */
 .password-toggle {
   position: absolute;
   right: 15px;
@@ -865,7 +864,7 @@ select.register-input {
   color: var(--primary-pink);
   font-size: 16px;
   cursor: pointer;
-  padding: 5px;
+  padding: 20px;
   border-radius: 50%;
   transition: all var(--transition-base);
   z-index: 3;

@@ -102,6 +102,7 @@ export const MainProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("isAuthorized");
     localStorage.removeItem("tokenType");
+    localStorage.removeItem("lastPath");
 
     // Clear socket connection
     if (updateSocketToken) {

@@ -16,9 +16,17 @@ import Booking from "./models/booking.js";
 const PORT = process.env.PORT || 4000;
 
 const server = http.createServer(app);
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || FRONTEND_URL).split(",").map(s => s.trim());
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error("CORS policy: origin not allowed"));
+    },
     methods: ["GET", "POST"],
     credentials: true,
   }

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./dashboard-content.css";
 
 const ServiceRequestForm = () => {
   const { isAuthorized, user } = useMainContext();

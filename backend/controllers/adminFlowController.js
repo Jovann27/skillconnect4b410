@@ -2,9 +2,9 @@ import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import VerificationAppointment from "../models/verificationSchema.js";
 import User from "../models/userSchema.js";
-import Admin from "../models/adminSchema.js";
 import Notification from "../models/notification.js";
 import Service from "../models/service.js";
+import { io, onlineUsers } from "../server.js";
 
 // simple notify helper
 const sendNotification = async (userId, title, message, meta = {}) => {
@@ -35,7 +35,25 @@ export const scheduleVerificationAppointment = catchAsyncError(async (req, res, 
     status: "Pending",
   });
 
-  await sendNotification(provider._id, "Verification Appointment Scheduled", `Your verification appointment is scheduled on ${appt.appointmentDate.toISOString()}`, { apptId: appt._id });
+  const notification = await sendNotification(
+    provider._id, 
+    "Verification Appointment Scheduled", 
+    `Your verification appointment is scheduled on ${appt.appointmentDate.toISOString()}`, { 
+      apptId: appt._id }
+  );
+  
+  const providerSocketId = onlineUsers.get(provider._id.toString());
+  if (providerSocketId) {
+    io.to(providerSocketId).emit("appointment-notification", {
+      title: "Verification Appointment Scheduled",
+      message: `Your verification appointment is scheduled on ${appt.appointmentDate.toLocaleString()}`,
+      appointment: appt,
+      notification,
+    });
+    console.log("Sent real-time notification to provider");
+  } else {
+    console.log("Provider not online, real-time notification not sent");
+  }
 
   res.status(201).json({ success: true, appt });
 });
@@ -71,53 +89,19 @@ export const updateVerificationAppointment = catchAsyncError(async (req, res, ne
 // Get providers pending verification
 export const getPendingProviderApplications = catchAsyncError(async (req, res, next) => {
   if (!req.admin) return next(new ErrorHandler("Admin only", 401));
-  const pending = await User.find({ role: "Service Provider", verified: false, isApplyingProvider: true }).select("-password");
+  const pending = await User.find({ 
+    role: "Service Provider", 
+    verified: false, 
+    isApplyingProvider: true })
+    .select("-password");
   res.json({ success: true, count: pending.length, pending });
 });
 
-// Create a new service (admin only)
-export const createService = catchAsyncError(async (req, res, next) => {
-  if (!req.admin) return next(new ErrorHandler("Admin only", 401));
-  const { name, description, rate } = req.body;
-  if (!name || !description || !rate) return next(new ErrorHandler("Missing required fields", 400));
-
-  const service = await Service.create({
-    name,
-    description,
-    rate,
-    createdBy: req.admin._id,
-  });
-
-  res.status(201).json({ success: true, service });
-});
 
 // Get all services
 export const getServices = catchAsyncError(async (req, res, next) => {
   const services = await Service.find().sort({ createdAt: -1 });
   res.json({ success: true, services });
-});
-
-// Update admin services (admin only)
-export const updateAdminServices = catchAsyncError(async (req, res, next) => {
-  if (!req.admin) return next(new ErrorHandler("Admin only", 401));
-  const { services } = req.body;
-  if (!Array.isArray(services)) return next(new ErrorHandler("Services must be an array", 400));
-
-  const admin = await Admin.findById(req.admin._id);
-  if (!admin) return next(new ErrorHandler("Admin not found", 404));
-
-  admin.services = services;
-  await admin.save();
-
-  res.json({ success: true, services: admin.services });
-});
-
-// Get admin services
-export const getAdminServices = catchAsyncError(async (req, res, next) => {
-  const admin = await Admin.findOne({ role: "Admin" }).select("services");
-  if (!admin) return next(new ErrorHandler("Admin not found", 404));
-
-  res.json({ success: true, services: admin.services });
 });
 
 // Add service to user (admin only)

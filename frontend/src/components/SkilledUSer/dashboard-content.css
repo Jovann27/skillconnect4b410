@@ -968,3 +968,433 @@
   font-size: 48px;
   margin-bottom: 20px;
 }
+
+
+/**********
+           Service Request Form Styles 
+                                      ***********/
+.requestForm-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.requestForm-title {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 40px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.requestForm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.requestForm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.requestForm-group label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.requestForm-group label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #e91e63, transparent);
+  margin-left: 10px;
+}
+
+.requestForm-group input,
+.requestForm-group select,
+.requestForm-group textarea {
+  padding: 15px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: transparent;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.requestForm-group input:focus,
+.requestForm-group select:focus,
+.requestForm-group textarea:focus {
+  outline: none;
+}
+
+.requestForm-group input:hover,
+.requestForm-group select:hover,
+.requestForm-group textarea:hover {
+  border-color: #f06292;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.requestForm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.requestForm-submitBtn {
+  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  color: white;
+  border: none;
+  padding: 18px 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 20px;
+  align-self: center;
+  min-width: 200px;
+}
+
+.requestForm-submitBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.requestForm-submitBtn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(233, 30, 99, 0.4);
+}
+
+.requestForm-submitBtn:hover::before {
+  left: 100%;
+}
+
+.requestForm-submitBtn:active {
+  transform: translateY(-1px);
+}
+
+.service-requests-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.glass-text {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 15px;
+  backdrop-filter: blur(5px);
+}
+
+.glass-table {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  margin-bottom: 40px;
+}
+
+.glass-table thead {
+  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  color: white;
+}
+
+.glass-table th {
+  padding: 20px 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.glass-table tbody tr {
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(233, 30, 99, 0.1);
+}
+
+.glass-table tbody tr:hover {
+  background: rgba(233, 30, 99, 0.05);
+  transform: scale(1.01);
+}
+
+.glass-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.glass-table td {
+  padding: 18px 15px;
+  vertical-align: middle;
+  font-size: 0.95rem;
+  color: #2c3e50;
+}
+
+.glass-table td:first-child {
+  font-weight: 600;
+  color: #e91e63;
+}
+
+.glass-button.secondary {
+  background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%);
+  margin-left: 10px;
+}
+
+.glass-button.secondary:hover {
+  box-shadow: 0 10px 25px rgba(127, 140, 141, 0.4);
+}
+
+.glass-table .glass-button {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  min-width: auto;
+  border-radius: 20px;
+  margin: 2px;
+}
+
+.glass-table .glass-button.secondary {
+  margin-left: 5px;
+}
+
+.worker-card .glass-button {
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  min-width: auto;
+  border-radius: 25px;
+  margin: 3px;
+  flex: 1;
+  min-height: 40px;
+}
+
+.worker-card .glass-button.secondary {
+  margin-left: 5px;
+}
+
+.glass-button.chat {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  position: relative;
+}
+
+.glass-button.chat:hover {
+  box-shadow: 0 10px 25px rgba(52, 152, 219, 0.4);
+}
+
+.glass-button:focus {
+  outline: none;
+}
+
+.glass-button.chat::after {
+  content: "💬";
+  margin-left: 8px;
+  font-size: 0.9em;
+}
+
+.workers-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.worker-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.worker-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #e91e63, #f06292);
+}
+
+.worker-card:focus {
+  outline: none;
+}
+
+.profile-pic {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(233, 30, 99, 0.2);
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.worker-card:hover .profile-pic {
+  border-color: #e91e63;
+  transform: scale(1.05);
+}
+
+.worker-card h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.worker-card p {
+  color: #5a6c7d;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.worker-card strong {
+  color: #e91e63;
+  font-weight: 600;
+}
+
+.worker-card div {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* Responsive Design for Service Components */
+@media (max-width: 768px) {
+  .requestForm-container,
+  .service-requests-container {
+    margin: 20px;
+    padding: 30px 25px;
+  }
+
+  .requestForm-title {
+    font-size: 2rem;
+    margin-bottom: 30px;
+  }
+
+  .requestForm-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .requestForm-group input,
+  .requestForm-group select,
+  .requestForm-group textarea {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+  }
+
+  .requestForm-submitBtn {
+    padding: 15px 30px;
+    font-size: 1rem;
+    min-width: 180px;
+  }
+
+  .glass-table {
+    font-size: 0.85rem;
+  }
+
+  .glass-table th,
+  .glass-table td {
+    padding: 12px 8px;
+  }
+
+  .workers-list {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .worker-card {
+    padding: 25px 20px;
+  }
+
+  .profile-pic {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .requestForm-container,
+  .service-requests-container {
+    margin: 15px;
+    padding: 25px 20px;
+  }
+
+  .requestForm-title {
+    font-size: 1.8rem;
+  }
+
+  .glass-table {
+    border-radius: 10px;
+  }
+
+  .glass-table th {
+    font-size: 0.8rem;
+    padding: 10px 6px;
+  }
+
+  .glass-table td {
+    font-size: 0.8rem;
+    padding: 10px 6px;
+  }
+
+  .worker-card {
+    padding: 20px 15px;
+  }
+
+  .worker-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .glass-button {
+    padding: 10px 15px;
+    font-size: 0.85rem;
+  }
+}

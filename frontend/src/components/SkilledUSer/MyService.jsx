@@ -118,41 +118,22 @@ const MyService = () => {
     }
   }, []);
 
-  // Function to geocode address using Nominatim
-  const geocodeAddress = async (address) => {
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        return { lat: parseFloat(lat), lng: parseFloat(lon) };
-      }
-      return null;
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      return null;
-    }
-  };
-
-  // Geocode client addresses when currentRequests changes
+  // Use location from service requests
   useEffect(() => {
-    const geocodeRequests = async () => {
-      if (currentRequests.length > 0) {
-        const locations = [];
-        for (const request of currentRequests) {
-          if (request.address) {
-            const coords = await geocodeAddress(request.address);
-            if (coords) {
-              locations.push({ requestId: request._id, coords });
-            }
-          }
+    if (currentRequests.length > 0) {
+      const locations = [];
+      for (const request of currentRequests) {
+        if (request.location && request.location.lat && request.location.lng) {
+          locations.push({
+            requestId: request._id,
+            coords: { lat: request.location.lat, lng: request.location.lng }
+          });
         }
-        setClientLocations(locations);
-      } else {
-        setClientLocations([]);
       }
-    };
-    geocodeRequests();
+      setClientLocations(locations);
+    } else {
+      setClientLocations([]);
+    }
   }, [currentRequests]);
 
   useEffect(() => {

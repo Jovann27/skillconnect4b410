@@ -39,7 +39,7 @@ const HeroSection = () => {
           </Link>
           <Link to="/register" className="cta-button secondary hero-cta">
             <FaUsers className="btn-icon" />
-            Post Your Skills
+            Provide a Service
             <FaArrowRight className="btn-arrow" />
           </Link>
         </div>

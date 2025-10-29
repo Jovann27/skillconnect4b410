@@ -58,10 +58,11 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
     status: "Available",
   });
 
-  // Find matching providers based on service type and budget within 200 of their rate
+  // Find matching VERIFIED providers based on service type and budget within 200 of their rate
+  // Only verified service providers should receive new service request notifications
   const matchingProviders = await User.find({
     role: "Service Provider",
-    verified: true,
+    verified: true, // CRITICAL: Only verified providers get notified
     isOnline: true, // Only notify online providers
     service: { $regex: typeOfWork, $options: "i" },
   }).select("_id serviceRate");
@@ -242,35 +243,29 @@ export const getUserServiceRequests = catchAsyncError(async (req, res, next) => 
   res.status(200).json({ success: true, requests });
 });
 
-export const deleteServiceRequest = catchAsyncError(async (req, res, next) => {
-  if (!req.user) {
-    return next(new ErrorHandler("Unauthorized", 401));
-  }
+export const cancelServiceRequest = catchAsyncError(async (req, res, next) => {
+  if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
 
   const { id } = req.params;
-  if (!id || id.length !== 24) {
-    return next(new ErrorHandler("Invalid request ID", 400));
-  }
 
   const request = await ServiceRequest.findById(id);
-  if (!request) {
-    return next(new ErrorHandler("Service request not found", 404));
+  if (!request) return next(new ErrorHandler("Service request not found", 404));
+
+  if (String(request.requester) !== String(req.user._id) && req.user.role !== "admin") {
+    return next(new ErrorHandler("Not authorized to cancel this request", 403));
   }
-  if (
-    String(request.requester) !== String(req.user._id) &&
-    req.user.role !== "admin"
-  ) {
-    return next(new ErrorHandler("Not authorized to delete this request", 403));
+
+  if(["Complete", "Cancelled"].includes(request.status)) {
+    return next(new ErrorHandler("Cannot cancel a request that is already completed or cancelled", 400));
   }
-  await request.deleteOne();
+
+  request.status = "Cancelled";
+  await request.save();
 
   // Emit socket event for real-time updates
-  io.emit("service-request-updated", { requestId: request._id, action: "deleted" });
+  io.emit("service-request-updated", { requestId: request._id, action: "cancelled" });
 
-  res.status(200).json({
-    success: true,
-    message: "Service request deleted successfully",
-  });
+  res.status(200).json({ success: true, request });
 });
 
 

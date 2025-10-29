@@ -24,7 +24,7 @@ const Announcement = () => {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
-  if (!jobfair) return <div></div>; 
+  if (!jobfair || new Date(jobfair.date) < new Date()) return <div></div>;
 
   return (
     <>
@@ -39,7 +39,7 @@ const Announcement = () => {
             <div className="announcement-content">
               <div className="announcement-left">
                 <div className="career-fair-title">
-                  {jobfair.title || 'CAREER FAIR'}
+                  {jobfair.title}
                 </div>
 
                 {jobfair.description && (
@@ -80,7 +80,7 @@ const Announcement = () => {
                     <div className="info-text">
                       <div className="info-label">TIME</div>
                       <div className="info-value">
-                        {jobfair.startTime || '8:00 AM'} - {jobfair.endTime || '4:00 PM'}
+                        {jobfair.startTime} - {jobfair.endTime}
                       </div>
                     </div>
                   </div>
@@ -95,7 +95,7 @@ const Announcement = () => {
                     <div className="info-text">
                       <div className="info-label">LOCATION</div>
                       <div className="info-value">
-                        {jobfair.location || 'Barangay 410 Community Center'}
+                        {jobfair.location}
                       </div>
                     </div>
                   </div>

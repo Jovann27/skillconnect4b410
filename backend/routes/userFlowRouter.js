@@ -13,7 +13,7 @@ import {
   updateServiceProfile,
   updateServiceStatus,
   getUserServiceRequests,
-  deleteServiceRequest,
+  cancelServiceRequest,
   acceptServiceRequest,
   getMatchingRequests,
   getUserServices,
@@ -172,7 +172,7 @@ router.post('/review', isUserAuthenticated, leaveReview);
 router.get('/service-requests', isUserAuthenticated, getServiceRequests);
 router.post('/post-service-request', isUserAuthenticated, postServiceRequest);
 router.get('/user-service-requests', isUserAuthenticated, getUserServiceRequests);
-router.delete('/service-request/:id/delete', isUserAuthenticated, deleteServiceRequest);
+router.delete('/service-request/:id/cancel', isUserAuthenticated, cancelServiceRequest);
 router.put('/service-request/:id/update', isUserAuthenticated, updateServiceRequest);
 router.post('/service-request/:id/accept', isUserAuthenticated, acceptServiceRequest);
 

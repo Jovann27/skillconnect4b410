@@ -75,7 +75,7 @@ const AdminDashboard = () => {
         <nav className="admin-sidebar-nav" role="navigation" aria-label="Admin navigation">
           <ul className="admin-nav-links">
             <li>
-              <Link to="/admin/dashboard" className={`admin-nav-link ${isDashboardHome ? 'active' : ''}`}>
+              <Link to="/admin/analytics" className={`admin-nav-link ${isDashboardHome ? 'active' : ''}`}>
                 <FaHome className="nav-icon" />
                 <span className="nav-text">Dashboard Home</span>
                 {isDashboardHome && <div className="nav-indicator"></div>}
