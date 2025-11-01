@@ -3,9 +3,14 @@ import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import sendToken from "../utils/jwtToken.js";
 import cloudinary from "cloudinary";
+import fs from "fs";
 
 const uploadToCloudinary = async (filePath, folder) => {
   const res = await cloudinary.v2.uploader.upload(filePath, { folder });
+  // Clean up temp file after upload
+  if (filePath) {
+    fs.unlinkSync(filePath);
+  }
   return res.secure_url;
 };
 
@@ -18,6 +23,14 @@ export const register = catchAsyncError(async (req, res, next) => {
 
   if (password !== confirmPassword) return next(new ErrorHandler("Passwords do not match", 400));
   if (password.length < 8) return next(new ErrorHandler("Password must be at least 8 characters", 400));
+
+  // Validate birthdate
+  const birthDate = new Date(birthdate);
+  if (isNaN(birthDate.getTime())) return next(new ErrorHandler("Invalid birthdate format", 400));
+  if (birthDate > new Date()) return next(new ErrorHandler("Birthdate cannot be in the future", 400));
+
+  // Validate phone number format
+  if (!/^(\+63|0)[0-9]{10}$/.test(phone)) return next(new ErrorHandler("Invalid phone number format. Use +63XXXXXXXXXX or 0XXXXXXXXXX", 400));
 
   const [isUsername, isPhone, isEmail] = await Promise.all([
     User.findOne({ username }),

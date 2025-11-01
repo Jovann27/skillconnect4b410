@@ -36,9 +36,9 @@ export const getAllRequests = async (req, res) => {
       const userIds = usersWithSkill.map(u => u._id);
 
       const orClauses = [
-        { serviceType: regex },
-        { description: regex },
-        { user: { $in: userIds } }
+        { typeOfWork: regex },
+        { notes: regex },
+        { requester: { $in: userIds } }
       ];
       filter = { $or: orClauses };
     }
@@ -66,15 +66,15 @@ export const getAllRequests = async (req, res) => {
     const total = await ServiceRequest.countDocuments(filter);
 
     const requests = await ServiceRequest.find(filter)
-      .select("budget serviceType date time status noteToWorker user serviceProvider")
-      .populate("user", "firstName lastName email role")
+      .select("budget typeOfWork time status notes requester serviceProvider")
+      .populate("requester", "firstName lastName email role")
       .sort(sortObj)
       .skip(skip)
       .limit(limit);
 
     // Add fullName field for each request
     const requestsWithFullName = requests.map(req => {
-      const fullName = req.user ? `${req.user.firstName} ${req.user.lastName}` : "N/A";
+      const fullName = req.requester ? `${req.requester.firstName} ${req.requester.lastName}` : "N/A";
       return {
         ...req.toObject(),
         fullName
@@ -127,80 +127,16 @@ export const acceptServiceRequest = async (req, res) => {
 };
 
 
-export const postServiceRequest = async (req, res) => {
-  try {
-    const { serviceType, description, date, time, trackingId, serviceProvider } = req.body;
-    if (!serviceType || !description || !date || !time || !trackingId) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
 
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized. Please log in first.",
-      });
-    }
-
-    const user = await User.findById(req.user._id);
-    if (user) {
-      if(Array.isArray(user.role)) {
-        if (!user.role.includes("Requestor")) {
-          user.role.push("Requestor");
-          await user.save();
-        } else {
-          if (user.role !== "Service Requester") {
-            user.role = [user.role, "Service Requester"];
-            await user.save();
-          }
-        }
-      }
-    }
-
-    let assignedProviderId = null;
-    if (serviceProvider) {
-      const provider = await User.findById(serviceProvider);
-      if (!provider || provider.role !== "Service Provider") {
-        return res.status(400).json({ success: false, message: "Invalid service provider" });
-      }
-      assignedProviderId = provider._id;
-      
-    }
-
-    const newRequest = new ServiceRequest({
-      user: req.user._id,
-      serviceType,
-      description,
-      date,
-      time,
-      trackingId,
-      ...(assignedProviderId ? { serviceProvider: assignedProviderId } : {}),
-    });
-
-    await newRequest.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Service request created successfully",
-      request: newRequest,
-      updatedRole: user.role,
-    });
-  } catch (err) {
-    console.error("❌ Error creating service request:", err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
 
 export const getMyAcceptedRequests = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const requests = await ServiceRequest.find({ 
+    const requests = await ServiceRequest.find({
       $or: [ { serviceProvider: userId }, { acceptedBy: userId } ]
     })
-    .populate("user", "firstName lastName email")
+    .populate("requester", "firstName lastName email")
     .populate("serviceProvider", "firstName lastName email")
     .sort({ createdAt: -1 });
 
@@ -218,7 +154,7 @@ export const getMyIncomingRequests = async (req, res) => {
   try {
     const userId = req.user._id;
     const requests = await ServiceRequest.find({ serviceProvider: userId, status: "Available" })
-      .populate("user", "firstName lastName email")
+      .populate("requester", "firstName lastName email")
       .populate("serviceProvider", "firstName lastName email")
       .sort({ createdAt: -1 });
 

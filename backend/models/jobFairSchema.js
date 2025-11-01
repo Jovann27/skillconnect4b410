@@ -7,8 +7,6 @@ const jobFairSchema = new mongoose.Schema({
   location: { type: String, required: true },
   time: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
-
-
   expireAt: { type: String, expires: 0 },
 });
 

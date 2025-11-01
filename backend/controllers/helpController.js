@@ -19,7 +19,7 @@ export const createHelpTopic = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Please provide all fields", 400));
     }
 
-    const newTopic = await help.create({
+    const newTopic = await HelpRequest.create({
         title,
         description,
         category,
@@ -34,7 +34,7 @@ export const createHelpTopic = catchAsyncError(async (req, res, next) => {
 export const deleteHelpTopic = catchAsyncError(async (req, res, next) => {
     if (!req.admin) 
         return next(new ErrorHandler("Only admins can delete help topics", 403));   
-    const topic = await help.findById(req.params.id);
+    const topic = await HelpRequest.findById(req.params.id);
     if (!topic) {
         return next(new ErrorHandler("Help topic not found", 404));
     }
@@ -46,5 +46,3 @@ export const deleteHelpTopic = catchAsyncError(async (req, res, next) => {
         message: "Help topic deleted successfully",
     });
 });
-
-

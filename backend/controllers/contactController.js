@@ -22,7 +22,7 @@ export const sendContactMessage = async (req, res) => {
 
     res.json({ message: "Message sent successfully!" });
   } catch (err) {
-    console.error("Email error:", err);
-    res.status(500).json({ error: "Failed to send message" });
+    console.error("Email error:", err.message);
+    res.status(500).json({ error: `Failed to send message: ${err.message}` });
   }
 };

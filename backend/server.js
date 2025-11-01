@@ -39,21 +39,40 @@ io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
     if (!token) {
-      return next(new Error("Authentication error"));
+      return next(new Error("No token provided"));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    const user = await User.findById(decoded.id);
+    // Verify and decode token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return next(new Error("Token expired"));
+      } else if (jwtError.name === 'JsonWebTokenError') {
+        return next(new Error("Invalid token"));
+      } else {
+        return next(new Error("Token verification failed"));
+      }
+    }
 
+    // Check if user exists
+    const user = await User.findById(decoded.id);
     if (!user) {
       return next(new Error("User not found"));
+    }
+
+    // Check if user is banned
+    if (user.banned) {
+      return next(new Error("Account is banned"));
     }
 
     socket.userId = user._id.toString();
     socket.user = user;
     next();
   } catch (err) {
-    next(new Error("Authentication error"));
+    console.error("Socket authentication error:", err.message);
+    next(new Error("Authentication failed"));
   }
 });
 

@@ -60,6 +60,25 @@ const generalLimiter = rateLimit({
 });
 app.use(generalLimiter);
 
+// Stricter rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many login attempts, please try again after 15 minutes."
+  },
+  skipSuccessfulRequests: true, // Don't count successful logins against the limit
+});
+
+// Apply auth rate limiting to login and registration routes
+app.use("/api/v1/user/login", authLimiter);
+app.use("/api/v1/user/register", authLimiter);
+app.use("/api/v1/admin/auth/login", authLimiter);
+app.use("/api/v1/admin/auth/register", authLimiter);
+
 app.use(fileUpload({ useTempFiles: true, tempFileDir: path.join(__dirname, "temp") }));
 
 app.use("/api/v1/user", userRouter);

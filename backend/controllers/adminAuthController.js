@@ -3,9 +3,14 @@ import ErrorHandler from "../middlewares/error.js";
 import Admin from "../models/adminSchema.js";
 import sendToken from "../utils/jwtToken.js";
 import cloudinary from "cloudinary";
+import fs from "fs";
 
 const uploadToCloudinary = async (filePath, folder = "skillconnect/admins") => {
   const res = await cloudinary.v2.uploader.upload(filePath, { folder });
+  // Clean up temp file after upload
+  if (filePath) {
+    fs.unlinkSync(filePath);
+  }
   return res.secure_url;
 };
 
