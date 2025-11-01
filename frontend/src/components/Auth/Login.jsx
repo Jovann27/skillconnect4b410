@@ -14,7 +14,7 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { setIsAuthorized, setUser, setTokenType } = useMainContext();
+  const { setIsAuthorized, setUser, setTokenType, setIsUserVerified } = useMainContext();
   const navigate = useNavigate();
 
   // Form validation
@@ -43,17 +43,20 @@ const Login = () => {
     const isAuth = localStorage.getItem("isAuthorized") === "true";
     const type = localStorage.getItem("tokenType");
 
-    if (storedUser && isAuth && storedToken) {
+    if (storedUser && isAuth && storedToken && type === "user") {
       setUser(storedUser);
       setIsAuthorized(true);
       setTokenType(type);
-
-      // Update socket token for real-time chat
+      setIsUserVerified(storedUser.isVerified || false);
       updateSocketToken(storedToken);
 
-      navigate("/");
+      if (storedUser.isVerified) {
+        navigate("/user/my-service");
+      } else {
+        navigate("/user/request-service");
+      }
     }
-  }, [navigate, setUser, setIsAuthorized, setTokenType]);
+  }, [navigate, setUser, setIsAuthorized, setTokenType, setIsUserVerified]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -91,6 +94,7 @@ const Login = () => {
       setUser(data.user);
       setIsAuthorized(true);
       setTokenType("user");
+      setIsUserVerified(data.user.isVerified || false);
 
       // Update localStorage with user data and token
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -119,7 +123,11 @@ const Login = () => {
       setFormData({ email: "", password: "" });
       setErrors({});
 
-      navigate("/");
+      if (data.user.isVerified) {
+        navigate("/user/my-service");
+      } else {
+        navigate("/user/request-service");
+      }
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
       toast.error(errorMessage);
@@ -145,7 +153,6 @@ const Login = () => {
           <p>Sign in to your account</p>
         </div>
 
-        {/* General Error Message */}
         {errors.general && (
           <div className="error-message">
             <i className="fas fa-exclamation-circle"></i>

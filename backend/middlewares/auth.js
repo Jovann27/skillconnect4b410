@@ -60,3 +60,12 @@ export const isAdminAuthenticated = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Authentication failed (admin)" });
   }
 };
+
+
+export const isUserVerified = (req, res, next) => {
+  if (req.user.verified) {
+    next();
+  } else {
+    return res.status(403).json({ success: false, message: "User not verified" });
+  }
+};

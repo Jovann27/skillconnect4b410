@@ -20,6 +20,7 @@ const ChatIcon = () => {
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportMessage, setSupportMessage] = useState('');
   const [supportLoading, setSupportLoading] = useState(false);
+  const [helpTopics, setHelpTopics] = useState([]);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -58,16 +59,11 @@ const ChatIcon = () => {
   };
 
   const fetchHelpTopics = async () => {
-    setHelpLoading(true);
-    setHelpError(null);
     try {
       const response = await api.get("/help/help");
       setHelpTopics(response.data.topics);
     } catch (error) {
       console.error("Error fetching help topics:", error);
-      setHelpError("Failed to load help topics");
-    } finally {
-      setHelpLoading(false);
     }
   };
 
@@ -256,7 +252,6 @@ const ChatIcon = () => {
     setSelectedChat(null);
     setMessages([]);
     setTypingUsers(new Set());
-    setExpandedTopic(null);
     setSupportMessages([]);
   };
 

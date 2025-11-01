@@ -15,7 +15,7 @@ const AdminLogin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { setIsAuthorized, setUser, setTokenType } = useMainContext();
+  const { setIsAuthorized, setAdmin, setTokenType } = useMainContext();
   const navigate = useNavigate();
 
   // Clear field error when user starts typing
@@ -73,11 +73,11 @@ const AdminLogin = () => {
         { email: formData.email.trim(), password: formData.password }
       );
 
-      setUser(data.user);
+      setAdmin(data.user);
       setIsAuthorized(true);
       setTokenType("admin");
 
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("admin", JSON.stringify(data.user));
       localStorage.setItem("isAuthorized", "true");
       localStorage.setItem("tokenType", "admin");
 

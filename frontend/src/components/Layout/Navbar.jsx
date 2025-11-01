@@ -46,7 +46,6 @@ const Navbar = () => {
     };
   }, [show, dashboardDropdown]);
 
-  // Fetch unread count when user is authorized
   useEffect(() => {
     if (isAuthorized) {
       fetchUnreadCount();
@@ -65,14 +64,14 @@ const Navbar = () => {
       localStorage.removeItem("isAuthorized");
       localStorage.removeItem("tokenType");
       localStorage.removeItem("rememberedEmail");
-      navigate("/");
+      navigate("/login");
     } catch (err) {
       console.error("Logout failed:", err.message);
       localStorage.removeItem("user");
       localStorage.removeItem("isAuthorized");
       localStorage.removeItem("tokenType");
       localStorage.removeItem("rememberedEmail");
-      navigate("/");
+      navigate("/user/my-services");
     } finally {
       setIsLoggingOut(false);
     }

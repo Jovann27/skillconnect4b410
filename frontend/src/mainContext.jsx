@@ -13,6 +13,8 @@ const MainContext = createContext({
   setUser: () => {},
   admin: null,
   setAdmin: () => {},
+  isUserVerified: false,
+  setIsUserVerified: () => {},
   fetchProfile: () => {},
   logout: () => {},
 });
@@ -23,6 +25,7 @@ export const MainProvider = ({ children }) => {
   const [tokenType, setTokenType] = useState(null);
   const [user, setUser] = useState(null);
   const [admin, setAdmin] = useState(null);
+  const [isUserVerified, setIsUserVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const initialized = useRef(false);
@@ -35,14 +38,10 @@ export const MainProvider = ({ children }) => {
     try {
       const response = await api.get("/user/me", { withCredentials: true });
       if (response.data && response.data.success && response.data.user) {
-        console.log("MainContext - User data from API:", response.data.user);
-        const userData = {
-          ...response.data.user,
-          role: response.data.user.role || 'Community Member',
-          verified: response.data.user.verified || false
-        };
+        const userData = response.data.user;
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
+        setIsUserVerified(userData.isVerified || false);
         setIsAuthorized(true);
         setTokenType("user");
         setAdmin(null);
@@ -67,6 +66,7 @@ export const MainProvider = ({ children }) => {
           const { data } = await api.get("/admin/auth/me", { withCredentials: true });
           if (data && data.admin) {
             setAdmin(data.admin);
+            localStorage.setItem("admin", JSON.stringify(data.admin));
             setIsAuthorized(true);
             setTokenType("admin");
             setUser(null);
@@ -90,31 +90,26 @@ export const MainProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try {
-      await api.get("/user/logout", { withCredentials: true });
-    } catch (_) {}
-    try {
-      await api.get("/admin/auth/logout", { withCredentials: true });
-    } catch (_) {}
+  try {
+    await Promise.all([
+      api.get("/user/logout", { withCredentials: true }),
+      api.get("/admin/auth/logout", { withCredentials: true })
+    ]);
+  } catch (_) {
+    console.warn("Logout requests failed, proceeding with local clear.");
+  }
 
-    // Clear localStorage
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("isAuthorized");
-    localStorage.removeItem("tokenType");
-    localStorage.removeItem("lastPath");
+  localStorage.clear();
 
-    // Clear socket connection
-    if (updateSocketToken) {
-      updateSocketToken("");
-    }
+  if (updateSocketToken) updateSocketToken("");
 
-    setUser(null);
-    setAdmin(null);
-    setIsAuthorized(false);
-    setTokenType(null);
-    toast.success("Logged out successfully");
-  };
+  setUser(null);
+  setAdmin(null);
+  setIsUserVerified(false);
+  setIsAuthorized(false);
+  setTokenType(null);
+  toast.success("Logged out successfully");
+};
 
   useEffect(() => {
     if (!isAuthorized && authLoaded) {
@@ -133,21 +128,18 @@ export const MainProvider = ({ children }) => {
 
     debounceTimer.current = setTimeout(() => {
       const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      const storedAdmin = JSON.parse(localStorage.getItem("admin") || "null");
       const isAuth = localStorage.getItem("isAuthorized") === "true";
       const type = localStorage.getItem("tokenType");
+
       if (storedUser && isAuth && type === "user") {
-        console.log("MainContext: Using stored user data");
-        setUser({
-          ...storedUser,
-          role: storedUser.role || 'Community Member',
-          verified: storedUser.verified || false
-        });
+        setUser(storedUser);
+        setIsUserVerified(storedUser.isVerified || false);
         setIsAuthorized(true);
         setTokenType("user");
         setAdmin(null);
         setAuthLoaded(true);
 
-        // Update socket token for real-time chat
         const token = localStorage.getItem("token");
         if (token) {
           updateSocketToken(token);
@@ -155,7 +147,15 @@ export const MainProvider = ({ children }) => {
         return;
       }
 
-      console.log("MainContext: No stored data, fetching from API");
+      if (storedAdmin && isAuth && type === "admin") {
+        setAdmin(storedAdmin);
+        setIsAuthorized(true);
+        setTokenType("admin");
+        setUser(null);
+        setAuthLoaded(true);
+        return;
+      }
+
       fetchProfile();
     }, 100);
 
@@ -176,6 +176,8 @@ export const MainProvider = ({ children }) => {
     setUser,
     admin,
     setAdmin,
+    isUserVerified,
+    setIsUserVerified,
     fetchProfile,
     logout,
   };
