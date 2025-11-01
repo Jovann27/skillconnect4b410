@@ -7,8 +7,8 @@ const getTokenFromRequest = (req) => {
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
     return req.headers.authorization.split(" ")[1];
   }
-  // Fallback to cookie token
-  return req.cookies?.token;
+  // Check for adminToken first (for admin routes), then fallback to regular token
+  return req.cookies?.adminToken || req.cookies?.token;
 };
 
 export const isUserAuthenticated = async (req, res, next) => {
@@ -43,7 +43,7 @@ export const isAdminAuthenticated = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+      decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET_KEY);
     } catch (err) {
       return res.status(401).json({ success: false, message: "Invalid or expired token (admin)" });
     }

@@ -1,6 +1,7 @@
 import User from "../models/userSchema.js";
 import JobFair from "../models/jobFairSchema.js";
-import ServiceRequest from "../models/serviceRequest.js"; 
+import ServiceRequest from "../models/serviceRequest.js";
+import Settings from "../models/settings.js";
 
 export const getSkilledUsers = async (req, res) => {
   try {

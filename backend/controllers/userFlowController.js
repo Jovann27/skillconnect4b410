@@ -64,7 +64,7 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
     role: "Service Provider",
     verified: true, // CRITICAL: Only verified providers get notified
     isOnline: true, // Only notify online providers
-    service: { $regex: typeOfWork, $options: "i" },
+    skills: { $in: [new RegExp(typeOfWork, 'i')] }, // Match against skills array
   }).select("_id serviceRate");
 
   for (const provider of matchingProviders) {
@@ -93,8 +93,8 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
 
   // Optionally notify providers in the same category (not implemented here, but can query by skill)
 
-  // Emit socket event for real-time updates
-  io.emit("service-request-updated", { requestId: request._id, action: "created" });
+  // Emit socket event for real-time updates (to relevant users only)
+  // This could be improved by emitting to specific provider rooms
 
   res.status(201).json({ success: true, request });
 });
@@ -138,6 +138,13 @@ export const leaveReview = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Not authorized", 403));
   }
 
+  // Check if review already exists before creating
+  const existing = await Review.findOne({
+    booking: bookingId,
+    reviewer: req.user._id,
+  });
+  if (existing) return next(new ErrorHandler("You already reviewed this booking", 400));
+
   const review = await Review.create({
     booking: booking._id,
     reviewer: req.user._id,
@@ -145,13 +152,6 @@ export const leaveReview = catchAsyncError(async (req, res, next) => {
     rating,
     comments,
   });
-
-  const existing = await Review.findOne({
-    booking: bookingId,
-    reviewer: req.user._id,
-  });
-  if (existing) return next(new ErrorHandler("You already reviewed this booking", 400));
-
 
   await sendNotification(review.reviewee, "New Review", `You received a ${rating}-star review.`);
 

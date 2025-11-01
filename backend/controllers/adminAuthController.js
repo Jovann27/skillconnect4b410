@@ -1,12 +1,12 @@
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import Admin from "../models/adminSchema.js";
-import sendToken from "../utils/jwtToken.js";
-import cloudinary from "cloudinary";
+import sendToken, { sendAdminToken } from "../utils/jwtToken.js";
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
 const uploadToCloudinary = async (filePath, folder = "skillconnect/admins") => {
-  const res = await cloudinary.v2.uploader.upload(filePath, { folder });
+  const res = await cloudinary.uploader.upload(filePath, { folder });
   // Clean up temp file after upload
   if (filePath) {
     fs.unlinkSync(filePath);
@@ -24,7 +24,7 @@ export const adminLogin = catchAsyncError(async (req, res, next) => {
   const isMatched = await admin.comparePassword(password);
   if (!isMatched) return next(new ErrorHandler("Invalid email or password", 400));
 
-  sendToken(admin, 200, res, "Admin logged in successfully");
+  sendAdminToken(admin, 200, res, "Admin logged in successfully");
 });
 
 export const adminRegister = catchAsyncError(async (req, res, next) => {
@@ -34,8 +34,15 @@ export const adminRegister = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Please fill all fields", 400));
   }
 
-  // basic password strength check (you can expand)
-  if (password.length < 8) return next(new ErrorHandler("Password must be at least 8 characters", 400));
+  // Strong password validation
+  if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$/.test(password)) {
+    return next(new ErrorHandler("Password must include uppercase, lowercase, and numbers", 400));
+  }
+
+  // Check if an admin is already authenticated (only existing admins can create new admins)
+  if (!req.admin) {
+    return next(new ErrorHandler("Only existing administrators can register new admins", 403));
+  }
 
   const existingAdmin = await Admin.findOne({ email });
   if (existingAdmin) return next(new ErrorHandler("Admin already exists", 400));
@@ -46,15 +53,15 @@ export const adminRegister = catchAsyncError(async (req, res, next) => {
   }
 
   const admin = await Admin.create({ name, email, password, profilePic: profilePicUrl });
-  sendToken(admin, 201, res, "Admin registered successfully");
+  sendAdminToken(admin, 201, res, "Admin registered successfully");
 });
 
 export const adminLogout = catchAsyncError(async (req, res) => {
-  res.cookie("token", null, {
+  res.cookie("adminToken", null, {
     expires: new Date(Date.now()),
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    secure: true,
   });
   res.status(200).json({ success: true, message: "Admin logged out successfully" });
 });

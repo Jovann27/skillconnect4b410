@@ -79,7 +79,12 @@ app.use("/api/v1/user/register", authLimiter);
 app.use("/api/v1/admin/auth/login", authLimiter);
 app.use("/api/v1/admin/auth/register", authLimiter);
 
-app.use(fileUpload({ useTempFiles: true, tempFileDir: path.join(__dirname, "temp") }));
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: path.join(__dirname, "temp"),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  abortOnLimit: true
+}));
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/user", userFlowRouter);
