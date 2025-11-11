@@ -1,0 +1,130 @@
+.waiting-popup .popup-body {
+  background: #fef7f0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  padding: 20px;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.waiting-status {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.status-icon {
+  font-size: 64px;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.clock-icon {
+  color: #ffc107;
+}
+
+.arrow-icon {
+  color: #6f42c1;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.waiting-status h2 {
+  color: #333;
+  margin: 15px 0 10px 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.waiting-status p {
+  color: #666;
+  font-size: 16px;
+  margin: 0;
+}
+
+.request-summary {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.request-summary h3 {
+  color: #333;
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .waiting-status h2 {
+    font-size: 24px;
+  }
+
+  .status-icon {
+    font-size: 48px;
+  }
+}
+
+/* Cancel button in popup footer */
+.popup-footer .cancel-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.3s;
+  width: 100%;
+  max-width: 200px;
+}
+
+.popup-footer .cancel-button:hover:not(:disabled) {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+.popup-footer .cancel-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
