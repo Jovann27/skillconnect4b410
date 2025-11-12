@@ -154,6 +154,111 @@ export const deleteUserService = catchAsyncError(async (req, res, next) => {
   res.json({ success: true, services: user.services });
 });
 
+// Schedule an interview for a service provider applicant (admin)
+export const scheduleInterview = catchAsyncError(async (req, res, next) => {
+  const { applicantId, interviewDate, location, notes } = req.body;
+  if (!applicantId || !interviewDate || !location) return next(new ErrorHandler("Missing required fields", 400));
+  if (!req.admin) return next(new ErrorHandler("Admin only", 401));
+
+  const applicant = await User.findById(applicantId);
+  if (!applicant) return next(new ErrorHandler("Applicant not found", 404));
+  if (applicant.role !== "Service Provider Applicant") return next(new ErrorHandler("User is not a service provider applicant", 400));
+
+  const interview = await VerificationAppointment.create({
+    provider: applicant._id,
+    scheduledBy: req.admin._id,
+    appointmentDate: new Date(interviewDate),
+    location,
+    notes: notes || "",
+    type: "interview",
+    status: "Pending",
+  });
+
+  // Format the date for notification
+  const formattedDate = new Date(interviewDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // Send notification to applicant
+  const notification = await sendNotification(
+    applicant._id,
+    "Interview Scheduled",
+    `Your interview has been scheduled for ${formattedDate} at ${location}. Please arrive on time and bring all required documents.`,
+    { interviewId: interview._id, type: "interview" }
+  );
+
+  // Send real-time notification if user is online
+  const applicantSocketId = onlineUsers.get(applicant._id.toString());
+  if (applicantSocketId) {
+    io.to(applicantSocketId).emit("interview-notification", {
+      title: "Interview Scheduled",
+      message: `Your interview has been scheduled for ${formattedDate} at ${location}`,
+      interview,
+      notification,
+    });
+    console.log("Sent real-time interview notification to applicant");
+  } else {
+    console.log("Applicant not online, real-time notification not sent");
+  }
+
+  // Send email notification
+  try {
+    const nodemailer = (await import('nodemailer')).default;
+    const createTransporter = () => {
+      return nodemailer.createTransporter({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: process.env.SMTP_PORT || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_EMAIL,
+          pass: process.env.SMTP_PASSWORD,
+        },
+      });
+    };
+
+    const transporter = createTransporter();
+    const mailOptions = {
+      from: `"SkillConnect" <${process.env.SMTP_EMAIL}>`,
+      to: applicant.email,
+      subject: "Interview Scheduled - SkillConnect",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #ce4da3ff; text-align: center;">Interview Scheduled</h2>
+          <p>Hello ${applicant.firstName || applicant.username},</p>
+          <p>Your interview for the Service Provider position has been scheduled.</p>
+          <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px; text-align: center; margin: 20px 0;">
+            <h3 style="color: #ce4da3ff; margin: 0;">Interview Details</h3>
+            <p style="margin: 10px 0;"><strong>Date & Time:</strong> ${formattedDate}</p>
+            <p style="margin: 10px 0;"><strong>Location:</strong> ${location}</p>
+            ${notes ? `<p style="margin: 10px 0;"><strong>Notes:</strong> ${notes}</p>` : ''}
+          </div>
+          <p><strong>Important:</strong></p>
+          <ul>
+            <li>Please arrive 15 minutes early</li>
+            <li>Bring all required documents and certificates</li>
+            <li>Come prepared to discuss your skills and experience</li>
+          </ul>
+          <p>If you have any questions or need to reschedule, please contact our support team.</p>
+          <p>Best regards,<br>SkillConnect Team</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("Interview email sent successfully");
+  } catch (emailError) {
+    console.error("Failed to send interview email:", emailError);
+    // Don't fail the request if email fails
+  }
+
+  res.status(201).json({ success: true, interview });
+});
+
 // Get user services (admin only)
 export const getUserServices = catchAsyncError(async (req, res, next) => {
   if (!req.admin) return next(new ErrorHandler("Admin only", 401));

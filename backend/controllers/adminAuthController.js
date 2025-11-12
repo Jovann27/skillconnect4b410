@@ -16,12 +16,14 @@ const uploadToCloudinary = async (filePath, folder = "skillconnect/admins") => {
 
 export const adminLogin = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
-  if (!email || !password) return next(new ErrorHandler("Please fill all fields", 400));
+  const trimmedEmail = email?.trim();
+  const trimmedPassword = password?.trim();
+  if (!trimmedEmail || !trimmedPassword) return next(new ErrorHandler("Please fill all fields", 400));
 
-  const admin = await Admin.findOne({ email }).select("+password");
+  const admin = await Admin.findOne({ email: { $regex: new RegExp('^' + trimmedEmail.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') } }).select("+password");
   if (!admin) return next(new ErrorHandler("Invalid email or password", 400));
 
-  const isMatched = await admin.comparePassword(password);
+  const isMatched = await admin.comparePassword(trimmedPassword);
   if (!isMatched) return next(new ErrorHandler("Invalid email or password", 400));
 
   sendAdminToken(admin, 200, res, "Admin logged in successfully");
@@ -29,23 +31,22 @@ export const adminLogin = catchAsyncError(async (req, res, next) => {
 
 export const adminRegister = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
+  const trimmedName = name?.trim();
+  const trimmedEmail = email?.trim();
+  const trimmedPassword = password?.trim();
 
-  if (!name || !email || !password) {
+  if (!trimmedName || !trimmedEmail || !trimmedPassword) {
     return next(new ErrorHandler("Please fill all fields", 400));
   }
 
   // Strong password validation
-  if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$/.test(password)) {
+  if (!/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$/.test(trimmedPassword)) {
     return next(new ErrorHandler("Password must include uppercase, lowercase, and numbers", 400));
   }
 
-  // Allow first admin registration without authentication
-  const hasAdmins = await Admin.countDocuments() > 0;
-  if (hasAdmins && !req.admin) {
-    return next(new ErrorHandler("Only existing administrators can register new admins", 403));
-  }
+  // Allow admin registration without authentication
 
-  const existingAdmin = await Admin.findOne({ email });
+  const existingAdmin = await Admin.findOne({ email: { $regex: new RegExp('^' + trimmedEmail.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') } });
   if (existingAdmin) return next(new ErrorHandler("Admin already exists", 400));
 
   let profilePicUrl = "";
@@ -54,9 +55,9 @@ export const adminRegister = catchAsyncError(async (req, res, next) => {
   }
 
   const admin = await Admin.create({
-    name,
-    email,
-    password,
+    name: trimmedName,
+    email: trimmedEmail,
+    password: trimmedPassword,
     profilePic: profilePicUrl || ""
   });
   sendAdminToken(admin, 201, res, "Admin registered successfully");

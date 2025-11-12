@@ -39,7 +39,7 @@ const initializeSocket = async (token) => {
         return null;
     }
 
-    _socket = io("http://192.168.1.4:4000", {
+    _socket = io("http://192.168.1.11:4000", {
         withCredentials: true,
         auth: { token }
     });

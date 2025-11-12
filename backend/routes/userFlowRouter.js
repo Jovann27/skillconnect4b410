@@ -19,13 +19,10 @@ import {
   getMatchingRequests,
   getUserServices,
   updateServiceRequest,
-  getChatHistory,
-  sendMessage,
-  getChatList,
-  markMessagesAsSeen,
   getServiceProviders,
   reverseGeocode
 } from '../controllers/userFlowController.js';
+import { getServices } from '../controllers/adminFlowController.js';
 
 const router = express.Router();
 
@@ -203,12 +200,8 @@ router.get('/matching-requests', isUserAuthenticated, getMatchingRequests);
 
 // User services route
 router.get('/services', isUserAuthenticated, getUserServices);
+router.get('/predefined-services', isUserAuthenticated, getServices);
 
-// Chat routes
-router.get('/chat-history', isUserAuthenticated, getChatHistory);
-router.get('/chat-list', isUserAuthenticated, getChatList);
-router.post('/send-message', isUserAuthenticated, sendMessage);
-router.put('/chat/:appointmentId/mark-seen', isUserAuthenticated, markMessagesAsSeen);
 
 // Service Providers route
 router.get('/service-providers', isUserAuthenticated, getServiceProviders);

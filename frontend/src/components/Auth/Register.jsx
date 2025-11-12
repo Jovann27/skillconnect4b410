@@ -9,7 +9,7 @@ import "./auth-styles.css";
 const Register = () => {
   const [formData, setFormData] = useState({
     role: "",
-    skills: "",
+    skills: [],
     profilePic: null,
     username: "",
     password: "",
@@ -19,6 +19,7 @@ const Register = () => {
     email: "",
     phone: "",
     address: "",
+    occupation: "",
     birthdate: "",
     employed: "",
     isApplyingProvider: false,
@@ -73,9 +74,11 @@ const Register = () => {
     }
 
     // Service Provider specific validation
-    if (formData.role === "Service Provider") {
-      if (!formData.skills || formData.skills.trim() === "") {
-        errors.skills = "Skills are required for Service Providers";
+    if (formData.role === "Service Provider Applicant") {
+      if (!formData.skills || formData.skills.length === 0) {
+        errors.skills = "At least one skill is required for Service Providers";
+      } else if (formData.skills.length > 3) {
+        errors.skills = "You can select a maximum of 3 skills";
       }
       if (formData.certificates.length === 0) {
         errors.certificates = "Certificates are required for Service Providers";
@@ -138,7 +141,7 @@ const Register = () => {
         if (formData[key]) {
           if (key === "certificates") {
             formData[key].forEach((file) => submitData.append(key, file));
-          } else if (key === "validId" && formData.role !== "Service Provider") {
+          } else if (key === "validId" && formData.role !== "Service Provider Applicant") {
             return;
           } else {
             submitData.append(key, formData[key]);
@@ -233,26 +236,29 @@ const Register = () => {
           </div>
 
           {/* Username */}
-          <div className="input-container icon-input">
-            <i className="fas fa-user" aria-hidden="true"></i>
-            <input
-              type="text"
-              name="username"
-              placeholder="Choose a unique username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              className={`auth-input ${validationErrors.username ? 'error' : formData.username ? 'success' : ''}`}
-              aria-describedby={validationErrors.username ? 'username-error' : 'username-help'}
-              aria-invalid={!!validationErrors.username}
-              autoComplete="username"
-            />
-            {formData.username && !validationErrors.username && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.username && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Username</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-user" aria-hidden="true"></i>
+              <input
+                type="text"
+                name="username"
+                placeholder="Choose a unique username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                className={`auth-input ${validationErrors.username ? 'error' : formData.username ? 'success' : ''}`}
+                aria-describedby={validationErrors.username ? 'username-error' : 'username-help'}
+                aria-invalid={!!validationErrors.username}
+                autoComplete="username"
+              />
+              {formData.username && !validationErrors.username && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.username && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.username && (
             <small id="username-error" className="field-error" role="alert">
@@ -264,33 +270,36 @@ const Register = () => {
           </small>
 
           {/* Password */}
-          <div className="input-container icon-input password-field">
-            <i className="fas fa-lock" aria-hidden="true"></i>
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Enter Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.password ? 'error' : formData.password && passwordStrength.strength >= 2 ? 'success' : ''}`}
-              aria-describedby={validationErrors.password ? 'password-error' : 'password-help'}
-              aria-invalid={!!validationErrors.password}
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-            {formData.password && !validationErrors.password && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.password && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Password</label>
+            <div className="input-container icon-input password-field">
+              <i className="fas fa-lock" aria-hidden="true"></i>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Enter Password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.password ? 'error' : formData.password && passwordStrength.strength >= 2 ? 'success' : ''}`}
+                aria-describedby={validationErrors.password ? 'password-error' : 'password-help'}
+                aria-invalid={!!validationErrors.password}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              {formData.password && !validationErrors.password && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.password && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.password && (
             <small id="password-error" className="field-error" role="alert">
@@ -309,33 +318,36 @@ const Register = () => {
           </small>
 
           {/* Confirm Password */}
-          <div className="input-container icon-input password-field">
-            <i className="fas fa-lock" aria-hidden="true"></i>
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.confirmPassword ? 'error' : formData.confirmPassword && formData.password === formData.confirmPassword ? 'success' : ''}`}
-              aria-describedby={validationErrors.confirmPassword ? 'confirmPassword-error' : 'confirmPassword-help'}
-              aria-invalid={!!validationErrors.confirmPassword}
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-            >
-              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-            {formData.confirmPassword && formData.password === formData.confirmPassword && !validationErrors.confirmPassword && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.confirmPassword && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Confirm Password</label>
+            <div className="input-container icon-input password-field">
+              <i className="fas fa-lock" aria-hidden="true"></i>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.confirmPassword ? 'error' : formData.confirmPassword && formData.password === formData.confirmPassword ? 'success' : ''}`}
+                aria-describedby={validationErrors.confirmPassword ? 'confirmPassword-error' : 'confirmPassword-help'}
+                aria-invalid={!!validationErrors.confirmPassword}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              {formData.confirmPassword && formData.password === formData.confirmPassword && !validationErrors.confirmPassword && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.confirmPassword && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.confirmPassword && (
             <small id="confirmPassword-error" className="field-error" role="alert">
@@ -347,25 +359,28 @@ const Register = () => {
           </small>
 
           {/* Email */}
-          <div className="input-container icon-input">
-            <i className="fas fa-envelope" aria-hidden="true"></i>
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter Email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.email ? 'error' : formData.email ? 'success' : ''}`}
-              aria-describedby={validationErrors.email ? 'email-error' : 'email-help'}
-              aria-invalid={!!validationErrors.email}
-            />
-            {formData.email && !validationErrors.email && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.email && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Email</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-envelope" aria-hidden="true"></i>
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter Email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.email ? 'error' : formData.email ? 'success' : ''}`}
+                aria-describedby={validationErrors.email ? 'email-error' : 'email-help'}
+                aria-invalid={!!validationErrors.email}
+              />
+              {formData.email && !validationErrors.email && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.email && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.email && (
             <small id="email-error" className="field-error" role="alert">
@@ -377,25 +392,28 @@ const Register = () => {
           </small>
 
           {/* First Name */}
-          <div className="input-container icon-input">
-            <i className="fas fa-id-card" aria-hidden="true"></i>
-            <input
-              type="text"
-              name="firstName"
-              placeholder="First Name"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.firstName ? 'error' : formData.firstName ? 'success' : ''}`}
-              aria-describedby={validationErrors.firstName ? 'firstName-error' : 'firstName-help'}
-              aria-invalid={!!validationErrors.firstName}
-            />
-            {formData.firstName && !validationErrors.firstName && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.firstName && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">First Name</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-id-card" aria-hidden="true"></i>
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.firstName ? 'error' : formData.firstName ? 'success' : ''}`}
+                aria-describedby={validationErrors.firstName ? 'firstName-error' : 'firstName-help'}
+                aria-invalid={!!validationErrors.firstName}
+              />
+              {formData.firstName && !validationErrors.firstName && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.firstName && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.firstName && (
             <small id="firstName-error" className="field-error" role="alert">
@@ -404,25 +422,28 @@ const Register = () => {
           )}
 
           {/* Last Name */}
-          <div className="input-container icon-input">
-            <i className="fas fa-id-card" aria-hidden="true"></i>
-            <input
-              type="text"
-              name="lastName"
-              placeholder="Last Name"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.lastName ? 'error' : formData.lastName ? 'success' : ''}`}
-              aria-describedby={validationErrors.lastName ? 'lastName-error' : 'lastName-help'}
-              aria-invalid={!!validationErrors.lastName}
-            />
-            {formData.lastName && !validationErrors.lastName && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.lastName && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Last Name</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-id-card" aria-hidden="true"></i>
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.lastName ? 'error' : formData.lastName ? 'success' : ''}`}
+                aria-describedby={validationErrors.lastName ? 'lastName-error' : 'lastName-help'}
+                aria-invalid={!!validationErrors.lastName}
+              />
+              {formData.lastName && !validationErrors.lastName && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.lastName && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.lastName && (
             <small id="lastName-error" className="field-error" role="alert">
@@ -431,25 +452,28 @@ const Register = () => {
           )}
 
           {/* Phone */}
-          <div className="input-container icon-input">
-            <i className="fas fa-phone" aria-hidden="true"></i>
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.phone ? 'error' : formData.phone ? 'success' : ''}`}
-              aria-describedby={validationErrors.phone ? 'phone-error' : 'phone-help'}
-              aria-invalid={!!validationErrors.phone}
-            />
-            {formData.phone && !validationErrors.phone && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.phone && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Phone Number</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-phone" aria-hidden="true"></i>
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.phone ? 'error' : formData.phone ? 'success' : ''}`}
+                aria-describedby={validationErrors.phone ? 'phone-error' : 'phone-help'}
+                aria-invalid={!!validationErrors.phone}
+              />
+              {formData.phone && !validationErrors.phone && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.phone && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.phone && (
             <small id="phone-error" className="field-error" role="alert">
@@ -461,25 +485,28 @@ const Register = () => {
           </small>
 
           {/* Address */}
-          <div className="input-container icon-input">
-            <i className="fas fa-map-marker-alt" aria-hidden="true"></i>
-            <input
-              type="text"
-              name="address"
-              placeholder="Address"
-              value={formData.address}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.address ? 'error' : formData.address ? 'success' : ''}`}
-              aria-describedby={validationErrors.address ? 'address-error' : 'address-help'}
-              aria-invalid={!!validationErrors.address}
-            />
-            {formData.address && !validationErrors.address && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.address && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Address</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-map-marker-alt" aria-hidden="true"></i>
+              <input
+                type="text"
+                name="address"
+                placeholder="Address"
+                value={formData.address}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.address ? 'error' : formData.address ? 'success' : ''}`}
+                aria-describedby={validationErrors.address ? 'address-error' : 'address-help'}
+                aria-invalid={!!validationErrors.address}
+              />
+              {formData.address && !validationErrors.address && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.address && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.address && (
             <small id="address-error" className="field-error" role="alert">
@@ -487,48 +514,106 @@ const Register = () => {
             </small>
           )}
 
+          {/* Occupation */}
+          <div className="form-group">
+            <label className="field-label">Occupation</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-briefcase" aria-hidden="true"></i>
+              <input
+                type="text"
+                name="occupation"
+                placeholder="Occupation"
+                value={formData.occupation}
+                onChange={handleChange}
+                className={`register-input ${formData.occupation ? 'success' : ''}`}
+                aria-describedby="occupation-help"
+              />
+              {formData.occupation && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+            </div>
+          </div>
+          <small id="occupation-help" className="form-help">
+            Optional: Enter your current occupation or profession
+          </small>
+
           {/* Role */}
-          <div className="input-container icon-input">
-            <i className="fas fa-user-tag" aria-hidden="true"></i>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              required
-              className={`register-input ${formData.role ? 'success' : ''}`}
-              aria-describedby="role-help"
-              aria-label="Select your role in the community"
-            >
-              <option value="Community Member">Community Member</option>
-              <option value="Service Provider">Service Provider</option>
-            </select>
+          <div className="form-group">
+            <label className="field-label">Role</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-user-tag" aria-hidden="true"></i>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                className={`register-input ${formData.role ? 'success' : ''}`}
+                aria-describedby="role-help"
+                aria-label="Select your role in the community"
+              >
+                <option value="Community Member">Community Member</option>
+                <option value="Service Provider Applicant">Service Provider</option>
+              </select>
+            </div>
           </div>
           <small id="role-help" className="form-help">
             Community Members can request services, Service Providers can offer services
           </small>
 
-          {formData.role === "Service Provider" && (
+          {formData.role === "Service Provider Applicant" && (
             <>
-              {/* Skills */}
-              <div className="input-container icon-input">
-                <i className="fas fa-tools" aria-hidden="true"></i>
-                <input
-                  type="text"
-                  name="skills"
-                  placeholder="Enter skills (comma-separated)"
-                  value={formData.skills}
-                  onChange={handleChange}
-                  required
-                  className={`register-input ${validationErrors.skills ? 'error' : formData.skills ? 'success' : ''}`}
-                  aria-describedby={validationErrors.skills ? 'skills-error' : 'skills-help'}
-                  aria-invalid={!!validationErrors.skills}
-                />
-                {formData.skills && !validationErrors.skills && (
-                  <FaCheck className="validation-icon success" aria-hidden="true" />
-                )}
-                {validationErrors.skills && (
-                  <FaTimes className="validation-icon error" aria-hidden="true" />
-                )}
+              {/* Skills Selection */}
+              <div className="skills-selection">
+                <label className="skills-label">
+                  <i className="fas fa-tools" aria-hidden="true"></i>
+                  Select Your Skills (Choose 1-3)
+                </label>
+                <div className="skills-grid">
+                  {[
+                    "Pipe Installation", "Leak Repair", "Toilet Installation", "Drain Cleaning", "Water Heater Setup",
+                    "Wiring Installation", "Lighting Repair", "Appliance Troubleshooting", "Outlet Installation", "Circuit Breaker Maintenance",
+                    "General House Cleaning", "Deep Cleaning", "Carpet Cleaning", "Sofa Shampooing", "Post-Construction Cleaning",
+                    "Furniture Repair", "Wood Polishing", "Door and Window Fixing", "Custom Woodwork", "Cabinet Installation",
+                    "Interior Painting", "Exterior Painting", "Repainting", "Wallpaper Installation", "Color Consultation",
+                    "Air Conditioner Repair", "Refrigerator Repair", "Washing Machine Repair", "Microwave Oven Fixing", "Electric Fan Maintenance",
+                    "Tiling", "Roofing", "Masonry", "Floor Installation", "Room Remodeling",
+                    "Termite Treatment", "Cockroach Control", "Rodent Control", "Disinfection", "Mosquito Control",
+                    "Lawn Mowing", "Plant Care", "Landscape Design", "Tree Trimming", "Garden Cleanup",
+                    "Aircon Installation", "Aircon Cleaning", "HVAC Maintenance", "Filter Replacement", "Ventilation Setup",
+                    "Washing Clothes", "Drying & Ironing", "Folding & Packaging", "Delicate Fabric Care", "Stain Removal"
+                  ].map((skill) => (
+                    <div key={skill} className="skill-item">
+                      <label className="skill-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={formData.skills.includes(skill)}
+                          onChange={(e) => {
+                            const currentSkills = [...formData.skills];
+                            if (e.target.checked) {
+                              if (currentSkills.length < 3) {
+                                currentSkills.push(skill);
+                              }
+                            } else {
+                              const index = currentSkills.indexOf(skill);
+                              if (index > -1) {
+                                currentSkills.splice(index, 1);
+                              }
+                            }
+                            setFormData({ ...formData, skills: currentSkills });
+                          }}
+                          disabled={!formData.skills.includes(skill) && formData.skills.length >= 3}
+                        />
+                        <span className="checkmark"></span>
+                        <div className="skill-content">
+                          <div className="skill-name">{skill}</div>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div className="skills-count">
+                  Selected: {formData.skills.length}/3 skills
+                </div>
               </div>
               {validationErrors.skills && (
                 <small id="skills-error" className="field-error" role="alert">
@@ -536,32 +621,34 @@ const Register = () => {
                 </small>
               )}
               <small id="skills-help" className="form-help">
-                Example: Plumbing, Electrical, Carpentry, Cleaning
+                Choose up to 3 skills that best match your expertise
               </small>
             </>
           )}
 
           {/* Birthdate */}
-          <div className="input-container icon-input">
-            <i className="fas fa-calendar" aria-hidden="true"></i>
-            <label htmlFor="BirthDate">Birth Date:</label>
-            <input
-              type="date"
-              name="birthdate"
-              value={formData.birthdate}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.birthdate ? 'error' : formData.birthdate ? 'success' : ''}`}
-              aria-describedby={validationErrors.birthdate ? 'birthdate-error' : 'birthdate-help'}
-              aria-invalid={!!validationErrors.birthdate}
-              max={new Date().toISOString().split('T')[0]}
-            />
-            {formData.birthdate && !validationErrors.birthdate && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.birthdate && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Birth Date</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-calendar" aria-hidden="true"></i>
+              <input
+                type="date"
+                name="birthdate"
+                value={formData.birthdate}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.birthdate ? 'error' : formData.birthdate ? 'success' : ''}`}
+                aria-describedby={validationErrors.birthdate ? 'birthdate-error' : 'birthdate-help'}
+                aria-invalid={!!validationErrors.birthdate}
+                max={new Date().toISOString().split('T')[0]}
+              />
+              {formData.birthdate && !validationErrors.birthdate && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.birthdate && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.birthdate && (
             <small id="birthdate-error" className="field-error" role="alert">
@@ -570,28 +657,31 @@ const Register = () => {
           )}
 
           {/* Employment Status */}
-          <div className="input-container icon-input">
-            <i className="fas fa-briefcase" aria-hidden="true"></i>
-            <select
-              name="employed"
-              value={formData.employed}
-              onChange={handleChange}
-              required
-              className={`register-input ${validationErrors.employed ? 'error' : formData.employed ? 'success' : ''}`}
-              aria-describedby={validationErrors.employed ? 'employed-error' : 'employed-help'}
-              aria-invalid={!!validationErrors.employed}
-              aria-label="Select your employment status"
-            >
-              <option value="">Select Employment Status</option>
-              <option value="employed">Employed</option>
-              <option value="unemployed">Unemployed</option>
-            </select>
-            {formData.employed && !validationErrors.employed && (
-              <FaCheck className="validation-icon success" aria-hidden="true" />
-            )}
-            {validationErrors.employed && (
-              <FaTimes className="validation-icon error" aria-hidden="true" />
-            )}
+          <div className="form-group">
+            <label className="field-label">Employment Status</label>
+            <div className="input-container icon-input">
+              <i className="fas fa-briefcase" aria-hidden="true"></i>
+              <select
+                name="employed"
+                value={formData.employed}
+                onChange={handleChange}
+                required
+                className={`register-input ${validationErrors.employed ? 'error' : formData.employed ? 'success' : ''}`}
+                aria-describedby={validationErrors.employed ? 'employed-error' : 'employed-help'}
+                aria-invalid={!!validationErrors.employed}
+                aria-label="Select your employment status"
+              >
+                <option value="">Select Employment Status</option>
+                <option value="employed">Employed</option>
+                <option value="unemployed">Unemployed</option>
+              </select>
+              {formData.employed && !validationErrors.employed && (
+                <FaCheck className="validation-icon success" aria-hidden="true" />
+              )}
+              {validationErrors.employed && (
+                <FaTimes className="validation-icon error" aria-hidden="true" />
+              )}
+            </div>
           </div>
           {validationErrors.employed && (
             <small id="employed-error" className="field-error" role="alert">
@@ -600,7 +690,7 @@ const Register = () => {
           )}
 
           {/* Service Provider Documents */}
-          {formData.role === "Service Provider" && (
+          {formData.role === "Service Provider Applicant" && (
             <>
               {/* Certificates */}
               <div className="form-group file-upload">

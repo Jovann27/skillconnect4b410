@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Constants for configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.4:4000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.11:4000/api/v1";
 const MAX_RETRY_ATTEMPTS = 5;
 const RETRY_BASE_DELAY = 1000; // 1 second base delay
 const RETRY_MULTIPLIER = 2; // Exponential backoff multiplier

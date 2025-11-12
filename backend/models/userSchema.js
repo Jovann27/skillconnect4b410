@@ -15,9 +15,20 @@ const userSchema = new mongoose.Schema({
   occupation: { type: String, default: "" },
 
   employed: { type: String, required: true },
-  role: { type: String, enum: ["Community Member", "Service Provider Applicant", "Service Provider", "Admin"], default: "Community Member" },
 
-  skills: { type: [String], default: [] },
+  role: { type: String, required: true, enum: ["Community Member", "Service Provider Applicant", "Service Provider"], default: "Community Member" },
+  verified: { type: Boolean, default: false },
+
+  skills: {
+    type: [String],
+    validate: {
+      validator: function(skills) {
+        return skills.length >= 1 && skills.length <= 3;
+      },
+      message: 'You must select between 1 and 3 skills'
+    },
+    default: []
+  },
   certificates: { type: [String], default: [] },
   profilePic: { type: String, default: "" },
   validId: { type: String, default: "" },
@@ -25,11 +36,31 @@ const userSchema = new mongoose.Schema({
   availability: { type: String, enum: ["Available", "Currently Working", "Not Available"], default: "Not Available" },
   acceptedWork: { type: Boolean, default: false },
 
-  service: { type: String, default: "" },
+  service: {
+    type: String,
+    enum: [
+      "Plumbing",
+      "Electrical",
+      "Cleaning",
+      "Carpentry",
+      "Painting",
+      "Appliance Repair",
+      "Home Renovation",
+      "Pest Control",
+      "Gardening & Landscaping",
+      "Air Conditioning & Ventilation",
+      "Laundry / Labandera"
+    ],
+    required: false
+  },
   serviceRate: { type: Number, default: 0 },
   serviceDescription: { type: String, default: "" },
   isOnline: { type: Boolean, default: true },
-  services: { type: [String], default: [] },
+  services: [{
+    name: { type: String, required: true, trim: true },
+    rate: { type: Number, default: 0, min: 0 },
+    description: { type: String, default: "", trim: true }
+  }],
 
   bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: "Booking" }],
   notifications: [{ type: mongoose.Schema.Types.ObjectId, ref: "Notification" }],
@@ -38,6 +69,17 @@ const userSchema = new mongoose.Schema({
   passwordLength: { type: Number, default: 0 },
 
   banned: { type: Boolean, default: false },
+
+  // Notification preferences
+  notificationPreferences: {
+    eReceipts: { type: Boolean, default: false },
+    proofOfDelivery: { type: Boolean, default: true },
+    emailNotifications: { type: Boolean, default: true },
+    pushNotifications: { type: Boolean, default: true }
+  },
+
+  // Blocked users (for user-level blocking)
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   createdAt: { type: Date, default: Date.now },
 }, {

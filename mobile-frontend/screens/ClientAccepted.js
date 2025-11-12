@@ -10,29 +10,79 @@ import {
   TextInput,
   SafeAreaView,
   Linking,
+  ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useMainContext } from "../contexts/MainContext";
 
 export default function ClientAccepted({ route, navigation }) {
-  const { client } = route.params || {};
-  const [worker, setWorker] = useState(null);
+  const { requestId } = route.params || {};
+  const { user, api } = useMainContext();
+  const [request, setRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState("");
   const [media, setMedia] = useState([]);
 
+  // Fetch request data on component mount
   useEffect(() => {
-    const loadWorker = async () => {
-      const storedUser = await AsyncStorage.getItem("userData");
-      if (storedUser) setWorker(JSON.parse(storedUser));
-    };
-    loadWorker();
-  }, []);
+    if (requestId) {
+      fetchRequestData();
+    } else {
+      // If no requestId provided, fetch all accepted requests and use the first one
+      // This is a fallback for backward compatibility
+      fetchAcceptedRequests();
+    }
+  }, [requestId]);
+
+  const fetchRequestData = async () => {
+    try {
+      setLoading(true);
+      // For now, we'll fetch all accepted requests and find the matching one
+      // In a real implementation, you'd have a specific endpoint to get a single request
+      const response = await api.getMyAcceptedRequests();
+      if (response.data.success) {
+        const foundRequest = response.data.requests.find(req => req._id === requestId);
+        if (foundRequest) {
+          setRequest(foundRequest);
+        } else {
+          Alert.alert("Error", "Request not found");
+          navigation.goBack();
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching request:", error);
+      Alert.alert("Error", "Failed to load request data");
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAcceptedRequests = async () => {
+    try {
+      setLoading(true);
+      const response = await api.getMyAcceptedRequests();
+      if (response.data.success && response.data.requests.length > 0) {
+        setRequest(response.data.requests[0]); // Use the first/most recent request
+      } else {
+        Alert.alert("No Active Requests", "You don't have any active accepted requests.");
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error("Error fetching accepted requests:", error);
+      Alert.alert("Error", "Failed to load request data");
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCancel = () => {
     Alert.alert(
       "Cancel Confirmation",
-      "Are you sure you want to cancel this accepted client?",
+      "Are you sure you want to cancel this service request?",
       [
         { text: "No", style: "cancel" },
         {
@@ -45,12 +95,16 @@ export default function ClientAccepted({ route, navigation }) {
   };
 
   const handleCall = () => {
-    const phoneNumber = client?.phone || "09123456789";
+    const phoneNumber = request?.requester?.phone || user?.phone || "09123456789";
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
   const handleChat = () => {
-     navigation.navigate("Chat", { role: "worker", other: client });
+    navigation.navigate("Chat", {
+      role: "worker",
+      other: request?.requester,
+      requestId: request?._id
+    });
   };
 
   const pickMedia = async () => {
@@ -72,40 +126,72 @@ export default function ClientAccepted({ route, navigation }) {
     }
   };
 
-  const handleSubmitProof = () => {
+  const handleSubmitProof = async () => {
     if (media.length === 0) {
       Alert.alert("Required", "Please upload proof of work before completing the job.");
       return;
     }
-    // Send comment & media to backend here
-    Alert.alert("Success", "Proof of work submitted successfully!");
-    navigation.goBack();
+
+    try {
+      setSubmitting(true);
+      // Complete the service request
+      const response = await api.completeServiceRequest(request._id);
+
+      if (response.data.success) {
+        Alert.alert("Success", "Proof of work submitted and job completed successfully!");
+        navigation.goBack();
+      } else {
+        Alert.alert("Error", "Failed to complete the job. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error completing service request:", error);
+      Alert.alert("Error", "Failed to submit proof. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#f2f2f8", justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#c20884" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading request details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!request) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#f2f2f8", justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#666', textAlign: 'center' }}>No request data available</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f2f2f8" }}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Worker Info Card */}
+        {/* Service Provider Info Card (Current User) */}
         <View style={styles.section}>
           <View style={styles.card}>
             <View style={styles.profileRow}>
               <Image
                 source={
-                  worker?.photo
-                    ? { uri: worker.photo }
+                  user?.profilePic
+                    ? { uri: user.profilePic }
                     : require("../assets/default-profile.png")
                 }
                 style={styles.avatar}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{worker?.name}</Text>
+                <Text style={styles.name}>{user?.firstName} {user?.lastName}</Text>
                 <Text style={styles.info}>
-                  <Text style={{ fontWeight: "600" }}>Service: </Text>
-                  {worker?.service}
+                  <Text style={{ fontWeight: "600" }}>Role: </Text>
+                  Service Provider
                 </Text>
                 <Text style={styles.info}>
-                  <Text style={{ fontWeight: "600" }}>Rate: </Text>₱
-                  {worker?.rate}
+                  <Text style={{ fontWeight: "600" }}>Status: </Text>
+                  {request?.status || 'Working'}
                 </Text>
               </View>
             </View>
@@ -119,16 +205,18 @@ export default function ClientAccepted({ route, navigation }) {
             <View style={styles.profileRow}>
               <Image
                 source={
-                  client?.photo
-                    ? { uri: client.photo }
+                  request?.requester?.profilePic
+                    ? { uri: request.requester.profilePic }
                     : require("../assets/default-profile.png")
                 }
                 style={styles.avatar}
               />
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.name}>{client?.name}</Text>
-                <Text style={styles.info}>{client?.email}</Text>
-                <Text style={styles.info}>{client?.phone}</Text>
+                <Text style={styles.name}>
+                  {request?.requester?.firstName} {request?.requester?.lastName}
+                </Text>
+                <Text style={styles.info}>{request?.requester?.email}</Text>
+                <Text style={styles.info}>{request?.requester?.phone || 'Phone not provided'}</Text>
               </View>
 
               {/* Chat & Call Buttons */}
@@ -152,35 +240,39 @@ export default function ClientAccepted({ route, navigation }) {
             <View style={styles.divider} />
 
             {/* Service Details */}
-            <Detail icon="briefcase-outline" label="Service Needed" value={client?.service} />
-            <Detail icon="cash-outline" label="Budget" value={`₱${client?.budget}`} />
-            <Detail icon="calendar-outline" label="Date Required" value={client?.date} />
-            <Detail icon="time-outline" label="Preferred Time" value={client?.time} />
-            <Detail icon="location-outline" label="Location" value={client?.location} />
+            <Detail icon="briefcase-outline" label="Service Type" value={request?.typeOfWork || 'Not specified'} />
+            <Detail icon="cash-outline" label="Budget" value={`₱${request?.budget || 0}`} />
+            <Detail icon="calendar-outline" label="Date Created" value={request?.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Not specified'} />
+            <Detail icon="time-outline" label="Preferred Time" value={request?.time || 'Not specified'} />
 
             <View style={styles.divider} />
 
-            <Detail icon="trending-up-outline" label="Estimated Cost" value="₱350" />
-            <Detail icon="cash-outline" label="Match Rate" value={`₱${worker?.matchRate}`} />
+            <Detail icon="trending-up-outline" label="Status" value={request?.status || 'Working'} />
 
-            <View style={styles.noteBox}>
-              <Text style={styles.noteLabel}>Note</Text>
-              <Text style={styles.noteText}>
-                {client?.note}
-              </Text>
-            </View>
+            {request?.notes && (
+              <View style={styles.noteBox}>
+                <Text style={styles.noteLabel}>Client Notes</Text>
+                <Text style={styles.noteText}>
+                  {request.notes}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
         {/* Proof of Work Upload Card */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upload Proof of Work</Text>
+          <Text style={styles.sectionTitle}>Complete Service Request</Text>
           <View style={styles.card}>
             <Text style={styles.requiredText}>
-              Please upload proof of work before completing the job.
+              Please upload proof of work before marking the job as completed.
             </Text>
 
-            <TouchableOpacity style={styles.uploadButton} onPress={pickMedia}>
+            <TouchableOpacity
+              style={[styles.uploadButton, submitting && { opacity: 0.6 }]}
+              onPress={pickMedia}
+              disabled={submitting}
+            >
               <Ionicons name="cloud-upload-outline" size={24} color="#c20884" />
               <Text style={styles.uploadText}>Attach Photos/Videos</Text>
             </TouchableOpacity>
@@ -199,18 +291,31 @@ export default function ClientAccepted({ route, navigation }) {
 
             <TextInput
               style={styles.commentInput}
-              placeholder="Add comment (optional)"
+              placeholder="Add completion notes (optional)"
               multiline
               value={comment}
               onChangeText={setComment}
+              editable={!submitting}
             />
 
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmitProof}>
-              <Text style={styles.submitText}>Submit Proof</Text>
+            <TouchableOpacity
+              style={[styles.submitButton, submitting && { opacity: 0.6 }]}
+              onPress={handleSubmitProof}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.submitText}>Complete Job</Text>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelText}>Cancel</Text>
+            <TouchableOpacity
+              style={[styles.cancelButton, submitting && { opacity: 0.6 }]}
+              onPress={handleCancel}
+              disabled={submitting}
+            >
+              <Text style={styles.cancelText}>Cancel Request</Text>
             </TouchableOpacity>
           </View>
         </View>

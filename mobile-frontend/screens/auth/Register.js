@@ -15,7 +15,6 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { useMainContext } from "../../contexts/MainContext";
@@ -26,8 +25,8 @@ export default function RegisterScreen({ navigation }) {
   const { isLoggedIn, login } = useMainContext();
 
   const [formData, setFormData] = useState({
-    role: 'Community Member', // Default value helps with Pickers
-    skills: '',
+    role: 'Community Member',
+    skills: [],
     profilePic: null,
     username: '',
     password: '',
@@ -37,8 +36,9 @@ export default function RegisterScreen({ navigation }) {
     email: '',
     phone: '',
     address: '',
-    birthdate: new Date(), // Use actual Date object for RN DateTimePicker
+    birthdate: new Date(),
     employed: '',
+    occupation: '',
     certificates: [],
     validId: null,
   });
@@ -63,17 +63,19 @@ export default function RegisterScreen({ navigation }) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email || !emailRegex.test(formData.email)) errors.email = "Please enter a valid email address";
     
-    const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
-    if (!formData.phone || !phoneRegex.test(formData.phone)) errors.phone = "Please enter a valid phone number";
+    const phoneRegex = /^(\+63|0)[0-9]{10}$/;
+    if (!formData.phone || !phoneRegex.test(formData.phone)) errors.phone = "Invalid phone number format. Use +63XXXXXXXXXX or 0XXXXXXXXXX";
 
     if (!formData.firstName.trim()) errors.firstName = "First name is required";
     if (!formData.lastName.trim()) errors.lastName = "Last name is required";
     if (!formData.address.trim()) errors.address = "Address is required";
+    if (!formData.role) errors.role = "Role selection is required";
     // Birthdate is usually pre-filled with 'new Date()', check if user actually changed it if strictly required, or just accept default.
     if (!formData.employed) errors.employed = "Employment status is required";
 
     if (formData.role === "Service Provider Applicant") {
-      if (!formData.skills || formData.skills.trim() === "") errors.skills = "Skills are required for Service Providers";
+      if (!formData.skills || formData.skills.length === 0) errors.skills = "At least one skill is required for Service Providers";
+      else if (formData.skills.length > 3) errors.skills = "You can select a maximum of 3 skills";
       if (formData.certificates.length === 0) errors.certificates = "Certificates are required for Service Providers";
       if (!formData.validId) errors.validId = "Valid ID is required for Service Providers";
     }
@@ -105,7 +107,9 @@ export default function RegisterScreen({ navigation }) {
     // Request permissions first
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Sorry, we need camera roll permissions to make this work!');
+      Alert.alert('Permission denied', 'Sorry, we need camera roll permissions to make this work!', [
+        { text: 'OK' }
+      ]);
       return;
     }
 
@@ -141,7 +145,9 @@ export default function RegisterScreen({ navigation }) {
     setHasSubmitted(true);
 
     if (!validateForm()) {
-      Alert.alert("Validation Error", "Please fix the errors in the form before submitting");
+      Alert.alert("Validation Error", "Please fix the errors in the form before submitting", [
+        { text: 'OK' }
+      ]);
       return;
     }
 
@@ -202,7 +208,9 @@ export default function RegisterScreen({ navigation }) {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
-      Alert.alert("Success", data.message);
+      Alert.alert("Registration Successful", "Your account has been created successfully! Please check your email for verification instructions.", [
+        { text: 'OK' }
+      ]);
       setShowPopup(true);
 
       // Update Context & Storage using login function
@@ -214,7 +222,24 @@ export default function RegisterScreen({ navigation }) {
       }, 3000);
 
     } catch (error) {
-      Alert.alert("Registration Failed", error.response?.data?.message || error.message || "An error occurred");
+      console.error("Registration error:", error);
+      let errorMessage = "Unable to create your account. Please try again.";
+
+      if (error.response?.status === 400) {
+        errorMessage = "Please check your information and try again.";
+      } else if (error.response?.status === 409) {
+        errorMessage = "An account with this email or username already exists.";
+      } else if (error.response?.status === 413) {
+        errorMessage = "Files are too large. Please reduce file sizes and try again.";
+      } else if (error.response?.status >= 500) {
+        errorMessage = "Server error. Please try again later.";
+      } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network')) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+
+      Alert.alert("Registration Failed", errorMessage, [
+        { text: 'OK' }
+      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -241,7 +266,7 @@ export default function RegisterScreen({ navigation }) {
 
         {/* Profile Picture */}
         <View style={styles.formGroup}>
-            <Text style={styles.label}>Upload Profile Picture (Optional)</Text>
+            <Text style={styles.fieldLabel}>Profile Picture</Text>
             <TouchableOpacity style={styles.imageUploadBtn} onPress={() => pickImage('profilePic')}>
                 {formData.profilePic ? (
                     <Image source={{ uri: formData.profilePic.uri }} style={styles.profilePreview} />
@@ -252,145 +277,244 @@ export default function RegisterScreen({ navigation }) {
                     </View>
                 )}
             </TouchableOpacity>
+            <Text style={styles.helpText}>Optional: Upload a profile picture</Text>
         </View>
 
         {/* Username */}
-        <Input
-          icon="user"
-          placeholder="Choose a unique username"
-          value={formData.username}
-          onChangeText={(val) => handleChange('username', val)}
-          error={validationErrors.username}
-          showSuccess={formData.username && !validationErrors.username}
-        />
-        <Text style={styles.helpText}>Visible to other users (min 3 chars)</Text>
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Username</Text>
+            <Input
+              icon="user"
+              placeholder="Choose a unique username"
+              value={formData.username}
+              onChangeText={(val) => handleChange('username', val)}
+              error={validationErrors.username}
+              showSuccess={formData.username && !validationErrors.username}
+            />
+            <Text style={styles.helpText}>Visible to other users (min 3 chars)</Text>
+        </View>
 
          {/* Password */}
-         <Input
-          icon="lock"
-          placeholder="Enter Password"
-          value={formData.password}
-          onChangeText={(val) => handleChange('password', val)}
-          secureTextEntry={!showPassword}
-          error={validationErrors.password}
-          showSuccess={formData.password && passwordStrength.strength >= 2}
-          onTogglePassword={() => setShowPassword(!showPassword)}
-          isPassword={true}
-          showPassword={showPassword}
-        />
-        {/* Strength Bar */}
-        {formData.password.length > 0 && (
-             <View style={styles.strengthContainer}>
-                <View style={[styles.strengthBar, { 
-                    width: `${(passwordStrength.strength + 1) * 25}%`, 
-                    backgroundColor: passwordStrength.color 
-                }]} />
-                <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                    {passwordStrength.label}
-                </Text>
-             </View>
-        )}
-        <Text style={styles.helpText}>At least 8 characters long</Text>
+         <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Password</Text>
+            <Input
+              icon="lock"
+              placeholder="Enter Password"
+              value={formData.password}
+              onChangeText={(val) => handleChange('password', val)}
+              secureTextEntry={!showPassword}
+              error={validationErrors.password}
+              showSuccess={formData.password && passwordStrength.strength >= 2}
+              onTogglePassword={() => setShowPassword(!showPassword)}
+              isPassword={true}
+              showPassword={showPassword}
+            />
+            {/* Strength Bar */}
+            {formData.password.length > 0 && (
+                 <View style={styles.strengthContainer}>
+                    <View style={[styles.strengthBar, {
+                        width: `${(passwordStrength.strength + 1) * 25}%`,
+                        backgroundColor: passwordStrength.color
+                    }]} />
+                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                        {passwordStrength.label}
+                    </Text>
+                 </View>
+            )}
+            <Text style={styles.helpText}>At least 8 characters long</Text>
+        </View>
 
         {/* Confirm Password */}
-        <Input
-          icon="lock"
-          placeholder="Confirm Password"
-          value={formData.confirmPassword}
-          onChangeText={(val) => handleChange('confirmPassword', val)}
-          secureTextEntry={!showConfirmPassword}
-          error={validationErrors.confirmPassword}
-          showSuccess={formData.confirmPassword && formData.password === formData.confirmPassword && !validationErrors.confirmPassword}
-          onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
-          isPassword={true}
-          showPassword={showConfirmPassword}
-        />
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Confirm Password</Text>
+            <Input
+              icon="lock"
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChangeText={(val) => handleChange('confirmPassword', val)}
+              secureTextEntry={!showConfirmPassword}
+              error={validationErrors.confirmPassword}
+              showSuccess={formData.confirmPassword && formData.password === formData.confirmPassword && !validationErrors.confirmPassword}
+              onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+              isPassword={true}
+              showPassword={showConfirmPassword}
+            />
+        </View>
 
         {/* Email */}
-        <Input
-          icon="envelope"
-          placeholder="Enter Email"
-          value={formData.email}
-          onChangeText={(val) => handleChange('email', val)}
-          keyboardType="email-address"
-          error={validationErrors.email}
-          showSuccess={formData.email && !validationErrors.email}
-        />
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Email</Text>
+            <Input
+              icon="envelope"
+              placeholder="Enter Email"
+              value={formData.email}
+              onChangeText={(val) => handleChange('email', val)}
+              keyboardType="email-address"
+              error={validationErrors.email}
+              showSuccess={formData.email && !validationErrors.email}
+            />
+        </View>
 
-        {/* First Name & Last Name */}
-        <Input
-          icon="id-card"
-          placeholder="First Name"
-          value={formData.firstName}
-          onChangeText={(val) => handleChange('firstName', val)}
-          error={validationErrors.firstName}
-          showSuccess={formData.firstName && !validationErrors.firstName}
-        />
-        <Input
-          icon="id-card"
-          placeholder="Last Name"
-          value={formData.lastName}
-          onChangeText={(val) => handleChange('lastName', val)}
-          error={validationErrors.lastName}
-          showSuccess={formData.lastName && !validationErrors.lastName}
-        />
+        {/* First Name */}
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>First Name</Text>
+            <Input
+              icon="id-card"
+              placeholder="First Name"
+              value={formData.firstName}
+              onChangeText={(val) => handleChange('firstName', val)}
+              error={validationErrors.firstName}
+              showSuccess={formData.firstName && !validationErrors.firstName}
+            />
+        </View>
+
+        {/* Last Name */}
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Last Name</Text>
+            <Input
+              icon="id-card"
+              placeholder="Last Name"
+              value={formData.lastName}
+              onChangeText={(val) => handleChange('lastName', val)}
+              error={validationErrors.lastName}
+              showSuccess={formData.lastName && !validationErrors.lastName}
+            />
+        </View>
 
         {/* Phone */}
-        <Input
-          icon="phone"
-          placeholder="Phone Number"
-          value={formData.phone}
-          onChangeText={(val) => handleChange('phone', val)}
-          keyboardType="phone-pad"
-          error={validationErrors.phone}
-          showSuccess={formData.phone && !validationErrors.phone}
-        />
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Phone Number</Text>
+            <Input
+              icon="phone"
+              placeholder="Phone Number"
+              value={formData.phone}
+              onChangeText={(val) => handleChange('phone', val)}
+              keyboardType="phone-pad"
+              error={validationErrors.phone}
+              showSuccess={formData.phone && !validationErrors.phone}
+            />
+            <Text style={styles.helpText}>Use +63XXXXXXXXXX or 0XXXXXXXXXX format</Text>
+        </View>
 
         {/* Address */}
-        <Input
-          icon="map-marker-alt"
-          placeholder="Address"
-          value={formData.address}
-          onChangeText={(val) => handleChange('address', val)}
-          error={validationErrors.address}
-          showSuccess={formData.address && !validationErrors.address}
-        />
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Address</Text>
+            <Input
+              icon="map-marker-alt"
+              placeholder="Address"
+              value={formData.address}
+              onChangeText={(val) => handleChange('address', val)}
+              error={validationErrors.address}
+              showSuccess={formData.address && !validationErrors.address}
+            />
+        </View>
+
+        {/* Occupation */}
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Occupation</Text>
+            <Input
+              icon="briefcase"
+              placeholder="Occupation"
+              value={formData.occupation}
+              onChangeText={(val) => handleChange('occupation', val)}
+              error={validationErrors.occupation}
+              showSuccess={formData.occupation && !validationErrors.occupation}
+            />
+            <Text style={styles.helpText}>Optional: Enter your current occupation or profession</Text>
+        </View>
 
         {/* Role Picker */}
-        <View style={styles.pickerContainer}>
-             <FontAwesome5 name="user-tag" size={18} color="#db3295ff" style={styles.inputIcon} />
-             <Picker
-                selectedValue={formData.role}
-                style={styles.picker}
-                onValueChange={(itemValue) => handleChange('role', itemValue)}
-             >
-                <Picker.Item label="Community Member" value="Community Member" />
-                <Picker.Item label="Service Provider" value="Service Provider Applicant" />
-             </Picker>
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Role</Text>
+            <View style={[styles.pickerContainer, validationErrors.role && styles.inputError]}>
+                 <FontAwesome5 name="user-tag" size={18} color="#db3295ff" style={styles.inputIcon} />
+                 <Picker
+                    selectedValue={formData.role}
+                    style={styles.picker}
+                    onValueChange={(itemValue) => handleChange('role', itemValue)}
+                    mode="dropdown"
+                 >
+                    <Picker.Item label="Select your role" value="" color="#999" />
+                    <Picker.Item label="Community Member" value="Community Member" />
+                    <Picker.Item label="Service Provider" value="Service Provider Applicant" />
+                 </Picker>
+            </View>
+            {validationErrors.role && <Text style={styles.errorText}>{validationErrors.role}</Text>}
+            <Text style={styles.helpText}>Members request services, Providers offer them.</Text>
         </View>
-        <Text style={styles.helpText}>Members request services, Providers offer them.</Text>
 
         {/* --- CONDITIONAL SERVICE PROVIDER FIELDS --- */}
         {formData.role === "Service Provider Applicant" && (
             <>
-                 <Input
-                    icon="tools"
-                    placeholder="Enter skills (comma-separated)"
-                    value={formData.skills}
-                    onChangeText={(val) => handleChange('skills', val)}
-                    error={validationErrors.skills}
-                    showSuccess={formData.skills && !validationErrors.skills}
-                />
-                <Text style={styles.helpText}>Ex: Plumbing, Electrical, Cleaning</Text>
+                <View style={styles.formGroup}>
+                    <Text style={[styles.fieldLabel, validationErrors.skills && { color: '#F44336' }]}>
+                        Skills
+                    </Text>
+                    <View style={styles.skillsGrid}>
+                        {[
+                            "Pipe Installation", "Leak Repair", "Toilet Installation", "Drain Cleaning", "Water Heater Setup",
+                            "Wiring Installation", "Lighting Repair", "Appliance Troubleshooting", "Outlet Installation", "Circuit Breaker Maintenance",
+                            "General House Cleaning", "Deep Cleaning", "Carpet Cleaning", "Sofa Shampooing", "Post-Construction Cleaning",
+                            "Furniture Repair", "Wood Polishing", "Door and Window Fixing", "Custom Woodwork", "Cabinet Installation",
+                            "Interior Painting", "Exterior Painting", "Repainting", "Wallpaper Installation", "Color Consultation",
+                            "Air Conditioner Repair", "Refrigerator Repair", "Washing Machine Repair", "Microwave Oven Fixing", "Electric Fan Maintenance",
+                            "Tiling", "Roofing", "Masonry", "Floor Installation", "Room Remodeling",
+                            "Termite Treatment", "Cockroach Control", "Rodent Control", "Disinfection", "Mosquito Control",
+                            "Lawn Mowing", "Plant Care", "Landscape Design", "Tree Trimming", "Garden Cleanup",
+                            "Aircon Installation", "Aircon Cleaning", "HVAC Maintenance", "Filter Replacement", "Ventilation Setup",
+                            "Washing Clothes", "Drying & Ironing", "Folding & Packaging", "Delicate Fabric Care", "Stain Removal"
+                        ].map((skill) => (
+                            <TouchableOpacity
+                                key={skill}
+                                style={[
+                                    styles.skillButton,
+                                    formData.skills.includes(skill) && styles.skillButtonSelected,
+                                    !formData.skills.includes(skill) && formData.skills.length >= 3 && styles.skillButtonDisabled
+                                ]}
+                                onPress={() => {
+                                    const currentSkills = [...formData.skills];
+                                    if (currentSkills.includes(skill)) {
+                                        // Remove skill
+                                        const index = currentSkills.indexOf(skill);
+                                        currentSkills.splice(index, 1);
+                                    } else if (currentSkills.length < 3) {
+                                        // Add skill (only if under limit)
+                                        currentSkills.push(skill);
+                                    }
+                                    handleChange('skills', currentSkills);
+                                }}
+                                disabled={!formData.skills.includes(skill) && formData.skills.length >= 3}
+                            >
+                                <Text style={[
+                                    styles.skillButtonText,
+                                    formData.skills.includes(skill) && styles.skillButtonTextSelected
+                                ]}>
+                                    {skill}
+                                </Text>
+                                {formData.skills.includes(skill) && (
+                                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" style={{ marginLeft: 5 }} />
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    <Text style={styles.skillsCount}>
+                        Selected: {formData.skills.length}/3 skills
+                    </Text>
+                    {validationErrors.skills && <Text style={styles.errorText}>{validationErrors.skills}</Text>}
+                    <Text style={styles.helpText}>Choose up to 3 skills that best match your expertise</Text>
+                </View>
             </>
         )}
 
         {/* Birthdate */}
-        <TouchableOpacity style={[styles.inputContainer, validationErrors.birthdate && styles.inputError]} onPress={() => setShowDatePicker(true)}>
-             <FontAwesome5 name="calendar" size={18} color="#db3295ff" style={styles.inputIcon} />
-             <Text style={styles.dateText}>{formData.birthdate.toLocaleDateString()}</Text>
-        </TouchableOpacity>
-        {validationErrors.birthdate && <Text style={styles.errorText}>{validationErrors.birthdate}</Text>}
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Birth Date</Text>
+            <TouchableOpacity style={[styles.inputContainer, validationErrors.birthdate && styles.inputError]} onPress={() => setShowDatePicker(true)}>
+                 <FontAwesome5 name="calendar" size={18} color="#db3295ff" style={styles.inputIcon} />
+                 <Text style={styles.dateText}>{formData.birthdate.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+            {validationErrors.birthdate && <Text style={styles.errorText}>{validationErrors.birthdate}</Text>}
+        </View>
 
         {showDatePicker && (
             <DateTimePicker
@@ -404,33 +528,34 @@ export default function RegisterScreen({ navigation }) {
         )}
 
         {/* Employment Status Picker */}
-        <View style={[styles.pickerContainer, validationErrors.employed && styles.inputError]}>
-             <FontAwesome5 name="briefcase" size={18} color="#db3295ff" style={styles.inputIcon} />
-             <Picker
-                selectedValue={formData.employed}
-                style={styles.picker}
-                onValueChange={(itemValue) => handleChange('employed', itemValue)}
-             >
-                <Picker.Item label="Select Employment Status" value="" color="#999"/>
-                <Picker.Item label="Employed" value="employed" />
-                <Picker.Item label="Unemployed" value="unemployed" />
-                <Picker.Item label="Student" value="student" />
-                <Picker.Item label="Self-Employed" value="self-employed" />
-             </Picker>
+        <View style={styles.formGroup}>
+            <Text style={styles.fieldLabel}>Employment Status</Text>
+            <View style={[styles.pickerContainer, validationErrors.employed && styles.inputError]}>
+                 <FontAwesome5 name="briefcase" size={18} color="#db3295ff" style={styles.inputIcon} />
+                 <Picker
+                    selectedValue={formData.employed}
+                    style={styles.picker}
+                    onValueChange={(itemValue) => handleChange('employed', itemValue)}
+                 >
+                    <Picker.Item label="Select Employment Status" value="" color="#999"/>
+                    <Picker.Item label="Employed" value="employed" />
+                    <Picker.Item label="Unemployed" value="unemployed" />
+                 </Picker>
+            </View>
+            {validationErrors.employed && <Text style={styles.errorText}>{validationErrors.employed}</Text>}
         </View>
-        {validationErrors.employed && <Text style={styles.errorText}>{validationErrors.employed}</Text>}
 
         {/* --- MORE PROVIDER DOCUMENTS --- */}
         {formData.role === "Service Provider Applicant" && (
             <>
                 {/* Certificates (Multi) */}
                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Upload Certificates *</Text>
+                    <Text style={styles.fieldLabel}>Certificates</Text>
                     <TouchableOpacity style={[styles.fileUploadBtn, validationErrors.certificates && styles.inputError]} onPress={() => pickImage('certificates', true)}>
                         <FontAwesome5 name="file-upload" size={20} color="#666" />
                         <Text style={styles.fileUploadText}>Select Files</Text>
                     </TouchableOpacity>
-                    
+
                     {/* Preview list for certificates */}
                     <View style={styles.previewList}>
                         {formData.certificates.map((cert, index) => (
@@ -438,11 +563,12 @@ export default function RegisterScreen({ navigation }) {
                         ))}
                     </View>
                     {validationErrors.certificates && <Text style={styles.errorText}>{validationErrors.certificates}</Text>}
+                    <Text style={styles.helpText}>Upload certificates or licenses that prove your skills</Text>
                 </View>
 
                 {/* Valid ID (Single) */}
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Upload Valid ID *</Text>
+                    <Text style={styles.fieldLabel}>Valid ID</Text>
                     <TouchableOpacity style={[styles.fileUploadBtn, validationErrors.validId && styles.inputError]} onPress={() => pickImage('validId', false)}>
                         <FontAwesome5 name="id-badge" size={20} color="#666" />
                         <Text style={styles.fileUploadText}>
@@ -453,6 +579,7 @@ export default function RegisterScreen({ navigation }) {
                          <Image source={{ uri: formData.validId.uri }} style={styles.idPreview} resizeMode="cover" />
                     )}
                      {validationErrors.validId && <Text style={styles.errorText}>{validationErrors.validId}</Text>}
+                     <Text style={styles.helpText}>Upload a government-issued ID (images only)</Text>
                 </View>
             </>
         )}
@@ -469,7 +596,9 @@ export default function RegisterScreen({ navigation }) {
                  <Text style={styles.submitBtnText}>Create Account</Text>
             )}
         </TouchableOpacity>
-        <Text style={styles.termsText}>By creating an account, you agree to our terms of service</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('TermsPolicies')}>
+          <Text style={styles.termsText}>By creating an account, you agree to our <Text style={styles.termsLink}>terms of service</Text></Text>
+        </TouchableOpacity>
 
         {/* Auth Links */}
         <View style={styles.authLinks}>
@@ -489,6 +618,9 @@ export default function RegisterScreen({ navigation }) {
                  <Text style={styles.modalText}>
                      Your registration information will be verified by our officials.
                  </Text>
+                 <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.okButton}>
+                     <Text style={styles.okButtonText}>Ok</Text>
+                 </TouchableOpacity>
              </View>
         </View>
       </Modal>
@@ -626,6 +758,12 @@ const styles = StyleSheet.create({
   formGroup: {
       marginBottom: 20,
   },
+  fieldLabel: {
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 8,
+      fontSize: 16,
+  },
   label: {
       fontWeight: '600',
       color: '#555',
@@ -721,6 +859,10 @@ const styles = StyleSheet.create({
       fontSize: 12,
       marginTop: 15,
   },
+  termsLink: {
+      color: '#db3295ff',
+      textDecorationLine: 'underline',
+  },
   authLinks: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -735,6 +877,62 @@ const styles = StyleSheet.create({
   link: {
       color: '#db3295ff',
       fontWeight: 'bold',
+  },
+  // Skills Selection
+  skillsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginTop: 10,
+  },
+  skillButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f9f9f9',
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 8,
+      marginRight: 8,
+      minWidth: 140,
+  },
+  skillButtonSelected: {
+      backgroundColor: '#e8f5e8',
+      borderColor: '#4CAF50',
+  },
+  skillButtonDisabled: {
+      backgroundColor: '#f5f5f5',
+      borderColor: '#ccc',
+      opacity: 0.6,
+  },
+  skillButtonText: {
+      fontSize: 14,
+      color: '#333',
+      fontWeight: '500',
+  },
+  skillButtonTextSelected: {
+      color: '#4CAF50',
+      fontWeight: '600',
+  },
+  skillContent: {
+      flex: 1,
+      alignItems: 'center',
+  },
+  skillCategory: {
+      fontSize: 10,
+      color: '#888',
+      marginTop: 2,
+      textAlign: 'center',
+  },
+  skillsCount: {
+      textAlign: 'center',
+      fontSize: 12,
+      color: '#666',
+      marginTop: 10,
+      fontWeight: '500',
   },
   // Modal
   modalOverlay: {
@@ -757,5 +955,17 @@ const styles = StyleSheet.create({
       marginTop: 20,
       color: '#333',
       lineHeight: 24,
+  },
+  okButton: {
+      backgroundColor: '#db3295ff',
+      paddingVertical: 12,
+      paddingHorizontal: 30,
+      borderRadius: 10,
+      marginTop: 20,
+  },
+  okButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
   },
 });

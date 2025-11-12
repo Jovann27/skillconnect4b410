@@ -1,15 +1,92 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Switch,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
+import apiClient from "../api";
 
 export default function Notification() {
   const [eReceipts, setEReceipts] = useState(false);
   const [proofDelivery, setProofDelivery] = useState(true);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  // Fetch notification preferences on component mount
+  useEffect(() => {
+    fetchNotificationPreferences();
+  }, []);
+
+  const fetchNotificationPreferences = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get("/user/notification-preferences");
+
+      if (response.data.success) {
+        const preferences = response.data.preferences;
+        setEReceipts(preferences.eReceipts || false);
+        setProofDelivery(preferences.proofOfDelivery !== false); // Default to true
+        setEmail(preferences.email || "");
+      }
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      Alert.alert("Error", "Failed to load notification preferences");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateNotificationPreference = async (key, value) => {
+    try {
+      setUpdating(true);
+      const response = await apiClient.put("/user/notification-preferences", {
+        [key]: value
+      });
+
+      if (response.data.success) {
+        // Update local state
+        if (key === 'eReceipts') setEReceipts(value);
+        if (key === 'proofOfDelivery') setProofDelivery(value);
+      } else {
+        Alert.alert("Error", "Failed to update preference");
+        // Revert the change
+        if (key === 'eReceipts') setEReceipts(!value);
+        if (key === 'proofOfDelivery') setProofDelivery(!value);
+      }
+    } catch (error) {
+      console.error("Error updating notification preference:", error);
+      Alert.alert("Error", "Failed to update notification preference");
+      // Revert the change
+      if (key === 'eReceipts') setEReceipts(!value);
+      if (key === 'proofOfDelivery') setProofDelivery(!value);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleEReceiptsToggle = (value) => {
+    setEReceipts(value);
+    updateNotificationPreference('eReceipts', value);
+  };
+
+  const handleProofDeliveryToggle = (value) => {
+    setProofDelivery(value);
+    updateNotificationPreference('proofOfDelivery', value);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#4caf50" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading preferences...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -20,15 +97,16 @@ export default function Notification() {
         <Text style={styles.label}>Receive E-receipts</Text>
         <Switch
           value={eReceipts}
-          onValueChange={setEReceipts}
+          onValueChange={handleEReceiptsToggle}
           thumbColor={eReceipts ? "#4caf50" : "#f4f3f4"}
           trackColor={{ false: "#ccc", true: "#81c784" }}
+          disabled={updating}
         />
       </View>
 
       <View style={styles.row}>
         <Text style={styles.label}>E-Receipts Email</Text>
-        <Text style={styles.value}>example@email.com</Text>
+        <Text style={styles.value}>{email || "Not set"}</Text>
       </View>
 
       {/* Section: Proof of Delivery */}
@@ -40,9 +118,10 @@ export default function Notification() {
         </Text>
         <Switch
           value={proofDelivery}
-          onValueChange={setProofDelivery}
+          onValueChange={handleProofDeliveryToggle}
           thumbColor={proofDelivery ? "#4caf50" : "#f4f3f4"}
           trackColor={{ false: "#ccc", true: "#81c784" }}
+          disabled={updating}
         />
       </View>
     </ScrollView>

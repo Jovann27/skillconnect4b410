@@ -5,19 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Linking,
 } from "react-native";
 
-export default function TermsPolicies() {
-  // Replace these URLs with the actual links to your documents
-  const termsUrl = "https://example.com/terms";
-  const privacyUrl = "https://example.com/privacy";
-
-  const openLink = (url) => {
-    Linking.openURL(url).catch((err) =>
-      console.error("Failed to open page", err)
-    );
-  };
+export default function TermsPolicies({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
@@ -25,7 +15,7 @@ export default function TermsPolicies() {
 
       <TouchableOpacity
         style={styles.row}
-        onPress={() => openLink(termsUrl)}
+        onPress={() => navigation.navigate('Terms')}
       >
         <Text style={styles.label}>Terms and Conditions</Text>
         <Text style={styles.link}>Read</Text>
@@ -33,7 +23,7 @@ export default function TermsPolicies() {
 
       <TouchableOpacity
         style={styles.row}
-        onPress={() => openLink(privacyUrl)}
+        onPress={() => navigation.navigate('Privacy')}
       >
         <Text style={styles.label}>Privacy Policy</Text>
         <Text style={styles.link}>Read</Text>

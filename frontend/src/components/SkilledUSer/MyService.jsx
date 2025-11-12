@@ -16,7 +16,9 @@ const MyService = () => {
     rate: '',
     description: ''
   });
-  const [services, setServices] = useState([]);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+  const [predefinedServices, setPredefinedServices] = useState([]);
   const [selectedService, setSelectedService] = useState('');
   const [clientData, setClientData] = useState({
     name: '',
@@ -278,42 +280,46 @@ const MyService = () => {
   }, [clientLocations, userLocation, currentRequests]);
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchPredefinedServices = async () => {
       if (!isAuthorized || !user) return;
       try {
-        const response = await api.get('/user/services');
+        const response = await api.get('/user/predefined-services');
         if (response.data.success) {
-          setServices(response.data.services);
+          setPredefinedServices(response.data.services);
         }
       } catch (error) {
-        console.error('Error fetching services:', error);
+        console.error('Error fetching predefined services:', error);
       }
     };
-    fetchServices();
+    fetchPredefinedServices();
   }, [user, isAuthorized]);
 
   useEffect(() => {
-    if (selectedService) {
-      setFormData({
-        service: selectedService,
-        rate: '',
-        description: ''
-      });
-      // Update service profile
-      const updateServiceProfile = async () => {
-        try {
-          await api.post('/user/service-profile', {
-            service: selectedService,
-            rate: '',
-            description: ''
-          });
-        } catch (error) {
-          console.error('Error updating service profile:', error);
-        }
-      };
-      updateServiceProfile();
+    if (selectedService && predefinedServices.length > 0) {
+      // Find the selected predefined service
+      const selectedPredefinedService = predefinedServices.find(service => service.name === selectedService);
+      if (selectedPredefinedService) {
+        setFormData({
+          service: selectedService,
+          rate: selectedPredefinedService.rate,
+          description: selectedPredefinedService.description
+        });
+        // Update service profile with the predefined values
+        const updateServiceProfile = async () => {
+          try {
+            await api.post('/user/service-profile', {
+              service: selectedService,
+              rate: selectedPredefinedService.rate,
+              description: selectedPredefinedService.description
+            });
+          } catch (error) {
+            console.error('Error updating service profile:', error);
+          }
+        };
+        updateServiceProfile();
+      }
     }
-  }, [selectedService]);
+  }, [selectedService, predefinedServices]);
 
   const handleStatusToggle = async () => {
     try {
@@ -362,6 +368,19 @@ const MyService = () => {
     }
   };
 
+  const handleSaveService = async () => {
+    try {
+      const response = await api.post('/user/service-profile', editFormData);
+      if (response.data.success) {
+        setFormData({ ...editFormData });
+        setShowEditModal(false);
+        toast.success('Service profile updated successfully');
+      }
+    } catch (error) {
+      toast.error('Failed to update service profile');
+    }
+  };
+
   if (!isAuthorized || !user) {
     return (
       <div className="my-service-container">
@@ -401,8 +420,8 @@ const MyService = () => {
             <div className="service-controls">
               <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="form-input">
                 <option value="">Select a service</option>
-                {services.map((service) => (
-                  <option key={service} value={service}>{service}</option>
+                {predefinedServices.map((service) => (
+                  <option key={service._id} value={service.name}>{service.name}</option>
                 ))}
               </select>
               <div className="status-toggle">
@@ -424,7 +443,10 @@ const MyService = () => {
               <p><strong>Rate:</strong> {formData.rate}</p>
               <p><strong>Description:</strong> {formData.description}</p>
             </div>
-            <button className="btn-primary">EDIT</button>
+            <button className="btn-primary" onClick={() => {
+              setEditFormData({ ...formData });
+              setShowEditModal(true);
+            }}>EDIT</button>
           </div>
 
           <div className="client-request-section">
@@ -494,6 +516,50 @@ const MyService = () => {
           </div>
         </div>
       </div>
+
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Service Information</h2>
+              <button className="close-modal" onClick={() => setShowEditModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Service:</label>
+                <input
+                  type="text"
+                  value={editFormData.service}
+                  onChange={(e) => setEditFormData({ ...editFormData, service: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Rate:</label>
+                <input
+                  type="number"
+                  value={editFormData.rate}
+                  onChange={(e) => setEditFormData({ ...editFormData, rate: parseFloat(e.target.value) || '' })}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Description:</label>
+                <textarea
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  className="form-input"
+                  rows="4"
+                />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleSaveService}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

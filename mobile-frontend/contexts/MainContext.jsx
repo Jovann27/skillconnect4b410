@@ -21,6 +21,12 @@ export const MainProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Role-based access helpers
+  const userRole = user?.role;
+  const isCommunityMember = userRole === "Community Member";
+  const isServiceProviderApplicant = userRole === "Service Provider Applicant";
+  const isServiceProvider = userRole === "Service Provider";
+
   // Initialize user from AsyncStorage
   useEffect(() => {
     const initializeUser = async () => {
@@ -144,8 +150,10 @@ export const MainProvider = ({ children }) => {
   // API functions
   const api = {
     // User related
-    getUserProfile: () => apiClient.get('/users/profile'),
-    updateUserProfile: (data) => apiClient.put('/users/profile', data),
+    // Backend exposes the authenticated user's profile at /api/v1/user/me
+    // and update at /api/v1/user/update-profile
+    getUserProfile: () => apiClient.get('/user/me'),
+    updateUserProfile: (data) => apiClient.put('/user/update-profile', data),
 
     // Orders
     getOrders: () => apiClient.get('/orders'),
@@ -176,6 +184,18 @@ export const MainProvider = ({ children }) => {
     sendMessage: (data) => apiClient.post('/user/send-message', data),
     getChatHistory: () => apiClient.get('/user/chat-history'),
     markMessagesAsSeen: (appointmentId) => apiClient.put(`/user/chat/${appointmentId}/mark-seen`),
+
+    // Service Requests
+    getServiceRequests: () => apiClient.get('/settings/service-requests'),
+    acceptServiceRequest: (id) => apiClient.put(`/settings/service-requests/${id}/accept`),
+    ignoreServiceRequest: (id) => apiClient.put(`/settings/service-requests/${id}/ignore`),
+    getMyAcceptedRequests: () => apiClient.get('/settings/my-accepted-requests'),
+    completeServiceRequest: (id) => apiClient.put(`/settings/complete-service-request/${id}`),
+
+    // Blocked Users
+    getBlockedUsers: () => apiClient.get('/user/blocked-users'),
+    blockUser: (targetUserId) => apiClient.post('/user/block-user', { targetUserId }),
+    unblockUser: (targetUserId) => apiClient.delete(`/user/unblock-user/${targetUserId}`),
   };
 
   const value = {

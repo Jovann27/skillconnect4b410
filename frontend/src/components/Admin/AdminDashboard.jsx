@@ -19,11 +19,9 @@ const AdminDashboard = () => {
   const isJobFairs = location.pathname === "/admin/jobfairs";
   const isServiceRequests = location.pathname === "/admin/service-requests";
   const isUsers = location.pathname === "/admin/users";
-  const isServiceProviders = location.pathname === "/admin/service-providers";
   const isAdminSettings = location.pathname === "/admin/admin-settings";
-  const isBookedService = location.pathname === "/admin/booked-service";
   const isAdminRegister = location.pathname === "/admin/admin-register";
-  const isTopSkilledUsers = location.pathname === "/admin/top-skilled-users";
+
   const {
     setAdmin,
     setIsAuthorized,
@@ -294,42 +292,12 @@ const AdminDashboard = () => {
               </li>
               <li>
                 <Link
-                  to="/admin/service-providers"
-                  className={`admin-nav-link ${isServiceProviders ? "active" : ""}`}
-                >
-                  <FaTools className="nav-icon" />
-                  <span className="nav-text">Service Providers</span>
-                  {isServiceProviders && <div className="nav-indicator"></div>}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/admin/booked-service"
-                  className={`admin-nav-link ${isBookedService ? "active" : ""}`}
-                >
-                  <FaTools className="nav-icon" />
-                  <span className="nav-text">Booked Service</span>
-                  {isBookedService && <div className="nav-indicator"></div>}
-                </Link>
-              </li>
-              <li>
-                <Link
                   to="/admin/admin-register"
                   className={`admin-nav-link ${isAdminRegister ? "active" : ""}`}
                 >
                   <FaTools className="nav-icon" />
                   <span className="nav-text">Admin Register</span>
                   {isAdminRegister && <div className="nav-indicator"></div>}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/admin/top-skilled-users"
-                  className={`admin-nav-link ${isTopSkilledUsers ? "active" : ""}`}
-                >
-                  <FaTools className="nav-icon" />
-                  <span className="nav-text">Top Skilled Users</span>
-                  {isTopSkilledUsers && <div className="nav-indicator"></div>}
                 </Link>
               </li>
             </ul>

@@ -40,13 +40,13 @@ const AdminLogin = () => {
 
     if (!formData.email.trim()) {
       errors.email = "Email address is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       errors.email = "Please enter a valid email address";
     }
 
-    if (!formData.password) {
+    if (!formData.password.trim()) {
       errors.password = "Password is required";
-    } else if (formData.password.length < 6) {
+    } else if (formData.password.trim().length < 6) {
       errors.password = "Password must be at least 6 characters long";
     }
 
@@ -67,7 +67,7 @@ const AdminLogin = () => {
     try {
       const { data } = await api.post(
         "/admin/auth/login",
-        { email: formData.email.trim(), password: formData.password }
+        { email: formData.email.trim(), password: formData.password.trim() }
       );
 
       setAdmin(data.user);

@@ -36,7 +36,6 @@ import JobFairs from "./components/Admin/JobFairs";
 import ReviewServiceRequest from "./components/Admin/ReviewServiceRequest";
 import UserManagement from "./components/Admin/UserManagement";
 import SystemAnalytics from "./components/Admin/SystemAnalytics";
-import BookedService from "./components/Admin/BookedService";
 import SkillCategories from "./components/Admin/SkillCategories"
 import AdminSettings from "./components/Admin/AdminSettings";
 import AdminRegister from "./components/Admin/AdminRegister";
@@ -54,7 +53,18 @@ import Settings from "./components/SkilledUSer/Settings";
 
 import ErrorBoundary from "./components/Layout/ErrorBoundary";
 import { PopupProvider } from "./components/Layout/PopupContext";
-import TopSkilledUsers from "./components/Admin/TopSkilledUsers";
+
+// Role-based access guard component
+const RoleGuard = ({ allowedRoles, children, fallback = null }) => {
+  const { user } = useMainContext();
+  const userRole = user?.role;
+
+  if (!allowedRoles.includes(userRole)) {
+    return fallback || <Navigate to="/user/my-service" />;
+  }
+
+  return children;
+};
 
 const AppContent = () => {
   const { isAuthorized, tokenType, authLoaded, user, admin } = useMainContext();
@@ -62,6 +72,12 @@ const AppContent = () => {
   const navigate = useNavigate();
   const isAdmin = isAuthorized && tokenType === "admin";
   const isUser = isAuthorized && tokenType === "user";
+
+  // Role-based access helpers
+  const userRole = user?.role;
+  const isCommunityMember = userRole === "Community Member";
+  const isServiceProviderApplicant = userRole === "Service Provider Applicant";
+  const isServiceProvider = userRole === "Service Provider";
 
 
 
@@ -115,16 +131,63 @@ const AppContent = () => {
           path="/user/*"
           element={isUser ? <Outlet /> : <Navigate to="/login" />}
         >
+          {/* Routes available to all authenticated users */}
           <Route index element={<MyService />} />
           <Route path="dashboard" element={<MyService />} />
-          <Route path="my-service" element={<MyService />} />
-          <Route path="request-service" element={<ServiceRequest />} />
-          <Route path="records" element={<UserWorkRecords />} />
-          <Route path="users-request" element={<UserRequest />} />
           <Route path="manage-profile" element={<ManageProfile />} />
-          <Route path="waiting-for-worker" element={<WaitingForWorker />} />
-          <Route path="accepted-request" element={<AcceptedRequest />} />
           <Route path="general-settings" element={<Settings />} />
+
+          {/* Routes for Community Members and Service Providers */}
+          <Route
+            path="request-service"
+            element={
+              <RoleGuard allowedRoles={["Community Member", "Service Provider", "Service Provider Applicant"]}>
+                <ServiceRequest />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="records"
+            element={
+              <RoleGuard allowedRoles={["Community Member", "Service Provider", "Service Provider Applicant"]}>
+                <UserWorkRecords />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="waiting-for-worker"
+            element={
+              <RoleGuard allowedRoles={["Community Member", "Service Provider", "Service Provider Applicant"]}>
+                <WaitingForWorker />
+              </RoleGuard>
+            }
+          />
+
+          {/* Routes for Service Providers only */}
+          <Route
+            path="my-service"
+            element={
+              <RoleGuard allowedRoles={["Service Provider"]}>
+                <MyService />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="users-request"
+            element={
+              <RoleGuard allowedRoles={["Service Provider"]}>
+                <UserRequest />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="accepted-request"
+            element={
+              <RoleGuard allowedRoles={["Service Provider"]}>
+                <AcceptedRequest />
+              </RoleGuard>
+            }
+          />
         </Route>
 
         {/* Admin Routes */}
@@ -140,8 +203,6 @@ const AppContent = () => {
           <Route path="users" element={<UserManagement />} />
           <Route path="admin-register" element={<AdminRegister />} />
           <Route path="admin-settings" element={<AdminSettings />} />
-          <Route path="top-skilled-users" element={<TopSkilledUsers />} />
-          <Route path="booked-service" element={<BookedService />} />
           <Route path="skill-category" element={<SkillCategories />} />
         </Route>
 

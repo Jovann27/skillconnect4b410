@@ -4,24 +4,89 @@ import api from "../../api";
 import { useMainContext } from "../../mainContext";
 import "./UserManagement.css";
 
+const SERVICE_OPTIONS = [
+  {
+    name: "Plumbing",
+    description: "Pipe installation, leak repair, and bathroom plumbing maintenance.",
+    icon: "water-outline"
+  },
+  {
+    name: "Electrical",
+    description: "Wiring, lighting, and electrical appliance repair.",
+    icon: "flash-outline"
+  },
+  {
+    name: "Cleaning",
+    description: "House cleaning, deep cleaning, and carpet or sofa cleaning.",
+    icon: "broom-outline"
+  },
+  {
+    name: "Carpentry",
+    description: "Furniture repair, assembly, and custom woodwork.",
+    icon: "construct-outline"
+  },
+  {
+    name: "Painting",
+    description: "Interior and exterior wall painting, color consultation.",
+    icon: "color-palette-outline"
+  },
+  {
+    name: "Appliance Repair",
+    description: "Aircon, refrigerator, and washing machine maintenance.",
+    icon: "build-outline"
+  },
+  {
+    name: "Home Renovation",
+    description: "Tile, flooring, roofing, and home improvement.",
+    icon: "hammer-outline"
+  },
+  {
+    name: "Pest Control",
+    description: "Termite, rodent, and insect control for safer homes.",
+    icon: "bug-outline"
+  },
+  {
+    name: "Gardening & Landscaping",
+    description: "Lawn care, plant maintenance, and landscape design.",
+    icon: "leaf-outline"
+  },
+  {
+    name: "Air Conditioning & Ventilation",
+    description: "Aircon installation, cleaning, and HVAC servicing.",
+    icon: "snow-outline"
+  }
+];
+
 const UserManagement = () => {
   const { admin, isAuthorized, tokenType } = useMainContext();
   const [users, setUsers] = useState([]);
-  const [pendingApplications, setPendingApplications] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  const [serviceProviderApplicants, setServiceProviderApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("users");
-  const [appointmentForm, setAppointmentForm] = useState({
-    providerId: "",
-    appointmentDate: "",
-    location: "B",
-  });
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [selectedProviderId, setSelectedProviderId] = useState("");
   const [showApplicantModal, setShowApplicantModal] = useState(false);
   const [selectedApplicant, setSelectedApplicant] = useState(null);
   const [actionLoading, setActionLoading] = useState(null); // Track which action is loading
+  const [rejectReason, setRejectReason] = useState("");
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [serviceFormData, setServiceFormData] = useState([]);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [selectedProviderId, setSelectedProviderId] = useState(null);
+  const [appointmentForm, setAppointmentForm] = useState({
+    providerId: '',
+    appointmentDate: '',
+    location: ''
+  });
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [selectedApplicantId, setSelectedApplicantId] = useState(null);
+  const [interviewForm, setInterviewForm] = useState({
+    applicantId: '',
+    interviewDate: '',
+    location: '',
+    notes: ''
+  });
+  const [showUserModal, setShowUserModal] = useState(false);
 
   // Check if user is authenticated as admin
   const isAdmin = isAuthorized && tokenType === "admin" && admin;
@@ -57,23 +122,20 @@ const UserManagement = () => {
       setLoading(true);
       setError("");
 
-      const [usersRes, appointmentsRes] = await Promise.all([
+      const [usersRes, applicantsRes] = await Promise.all([
         api.get("/admin/users"),
-        api.get("/verification/")
+        api.get("/admin/service-provider-applicants")
       ]);
 
       console.log("Users response:", usersRes.data);
-      console.log("Appointments response:", appointmentsRes.data);
+      console.log("Applicants response:", applicantsRes.data);
 
       // Validate data structure
       const usersData = Array.isArray(usersRes.data.users) ? usersRes.data.users : [];
-      const appointmentsData = Array.isArray(appointmentsRes.data.appointments) ? appointmentsRes.data.appointments : [];
+      const applicantsData = Array.isArray(applicantsRes.data.applicants) ? applicantsRes.data.applicants : [];
 
       setUsers(usersData);
-      setPendingApplications(usersData.filter(user =>
-        user && user.isApplyingProvider === true && user.verified === false
-      ));
-      setAppointments(appointmentsData);
+      setServiceProviderApplicants(applicantsData);
     } catch (err) {
       console.error("Failed to fetch data:", err);
       setError(`Failed to fetch data: ${err.response?.data?.message || err.message}`);
@@ -82,14 +144,17 @@ const UserManagement = () => {
     }
   };
 
-  const openAppointmentModal = (providerId) => {
-    setSelectedProviderId(providerId);
-    setAppointmentForm({
-      providerId,
-      appointmentDate: "",
+
+
+  const openInterviewModal = (applicantId) => {
+    setSelectedApplicantId(applicantId);
+    setInterviewForm({
+      applicantId,
+      interviewDate: "",
       location: "",
+      notes: ""
     });
-    setShowAppointmentModal(true);
+    setShowInterviewModal(true);
   };
 
   const scheduleAppointment = async () => {
@@ -119,20 +184,35 @@ const UserManagement = () => {
     }
   };
 
-  const updateAppointmentStatus = async (appointmentId, status) => {
+  const scheduleInterview = async () => {
+    if (!interviewForm.interviewDate || !interviewForm.location) {
+      toast.error("Please fill in all interview details");
+      return;
+    }
+
+    setActionLoading('schedule-interview');
     try {
-      const result = await api.put(`/verification/${appointmentId}`, { status });
+      const result = await api.post("/admin/schedule-interview", {
+        applicantId: selectedApplicantId,
+        interviewDate: new Date(interviewForm.interviewDate).toISOString(),
+        location: interviewForm.location,
+        notes: interviewForm.notes
+      });
       if (result.data.success) {
-        toast.success("Appointment status updated successfully");
+        toast.success("Interview scheduled successfully");
+        setShowInterviewModal(false);
         fetchData();
       } else {
-        toast.error("Failed to update appointment status");
+        toast.error("Failed to schedule interview");
       }
     } catch (err) {
-      console.error("Error updating appointment status:", err);
-      toast.error("Error updating appointment status");
+      toast.error("Error scheduling interview");
+    } finally {
+      setActionLoading(null);
     }
   };
+
+
 
   const verifyUser = async (userId) => {
     try {
@@ -166,17 +246,12 @@ const UserManagement = () => {
     }
   };
 
-  const viewApplicant = (appointment) => {
-    setSelectedApplicant(appointment);
-    setShowApplicantModal(true);
-  };
-
   const approveApplicant = async (userId) => {
     setActionLoading('approve');
     try {
-      const result = await api.put(`/admin/user/verify/${userId}`);
+      const result = await api.put(`/admin/approve-service-provider/${userId}`);
       if (result.data.success) {
-        toast.success("Applicant approved successfully");
+        toast.success("Applicant approved successfully as Service Provider");
         setShowApplicantModal(false);
         fetchData();
       } else {
@@ -190,40 +265,32 @@ const UserManagement = () => {
     }
   };
 
-  const declineApplicant = async (userId) => {
-    setActionLoading('decline');
+  const rejectApplicant = async (userId) => {
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    setActionLoading('reject');
     try {
-      // For decline, we might want to update the appointment status or user status
-      // For now, let's just update the appointment to cancelled
-      const result = await api.put(`/verification/${selectedApplicant._id}`, { status: 'Declined' });
+      const result = await api.put(`/admin/reject-service-provider/${userId}`, { reason: rejectReason });
       if (result.data.success) {
-        toast.success("Applicant declined");
+        toast.success("Applicant rejected successfully");
         setShowApplicantModal(false);
+        setRejectReason("");
         fetchData();
       } else {
-        toast.error("Failed to decline applicant");
+        toast.error("Failed to reject applicant");
       }
     } catch (err) {
-      console.error("Error declining applicant:", err);
-      toast.error("Error declining applicant");
+      console.error("Error rejecting applicant:", err);
+      toast.error("Error rejecting applicant");
     } finally {
       setActionLoading(null);
     }
   };
 
-  const suspendApplicant = async (userId, days = 7) => {
-    setActionLoading('suspend');
-    try {
-      // This would require a new API endpoint for suspension
-      // For now, we'll use a placeholder
-      toast.info(`Suspension functionality for ${days} days - API endpoint needed`);
-      setActionLoading(null);
-    } catch (err) {
-      console.error("Error suspending applicant:", err);
-      toast.error("Error suspending applicant");
-      setActionLoading(null);
-    }
-  };
+
 
   const banApplicant = async (userId) => {
     if (!window.confirm("Are you sure you want to ban this applicant permanently?")) return;
@@ -241,6 +308,37 @@ const UserManagement = () => {
     } catch (err) {
       console.error("Error banning applicant:", err);
       toast.error("Error banning applicant");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveService = async () => {
+    if (!selectedUser) return;
+
+    // Filter out services with empty names and validate
+    const validServices = serviceFormData.filter(service =>
+      service.name && service.name.trim() !== ''
+    );
+
+    if (validServices.length === 0) {
+      toast.error("At least one service with a valid name is required");
+      return;
+    }
+
+    setActionLoading('save-service');
+    try {
+      const result = await api.put(`/admin/user/service-profile/${selectedUser._id}`, validServices);
+      if (result.data.success) {
+        toast.success("User service profile updated successfully");
+        setShowServiceModal(false);
+        fetchData();
+      } else {
+        toast.error("Failed to update service profile");
+      }
+    } catch (err) {
+      console.error("Error updating service profile:", err);
+      toast.error("Error updating service profile");
     } finally {
       setActionLoading(null);
     }
@@ -268,20 +366,21 @@ const UserManagement = () => {
     <div className="user-management-container">
       <div className="analytics-header">
         <div>
-          <h1>User Verification Management</h1>
-          <p className="header-description">Manage user verification and appointments</p>
+          <h1>User Management</h1>
+          <p className="header-description">Review Applications and Manage All Users</p>
         </div>
       </div>
 
       <div className="tab-navigation">
         <button onClick={() => setTab("users")} className={`tab-btn ${tab === "users" ? "active" : ""}`}>
-          <i className="fas fa-users"></i> All Users
+          <i className="fas fa-users"></i>
+          <span className="tab-text">All Users</span>
+          <span className="tab-count">{users.length}</span>
         </button>
-        <button onClick={() => setTab("pending")} className={`tab-btn ${tab === "pending" ? "active" : ""}`}>
-          <i className="fas fa-clock"></i> Pending Applications
-        </button>
-        <button onClick={() => setTab("appointments")} className={`tab-btn ${tab === "appointments" ? "active" : ""}`}>
-          <i className="fas fa-calendar-check"></i> Appointments
+        <button onClick={() => setTab("applicants")} className={`tab-btn ${tab === "applicants" ? "active" : ""}`}>
+          <i className="fas fa-user-plus"></i>
+          <span className="tab-text">Service Provider Applicants</span>
+          <span className="tab-count">{serviceProviderApplicants.length}</span>
         </button>
       </div>
 
@@ -303,6 +402,7 @@ const UserManagement = () => {
                   <th>Role</th>
                   <th>Status</th>
                   <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -331,64 +431,34 @@ const UserManagement = () => {
                           <div className="email">{user.email}</div>
                         </div>
                       </td>
-                      <td>{user.role}</td>
+                      <td>{user.role === 'Community Member' ? 'Resident' : user.role}</td>
                       <td>
-                        <span className={`status-badge ${user.verified ? 'approved' : user.banned ? 'banned' : 'pending'}`}>
-                          {user.banned ? 'Banned' : user.verified ? 'Verified' : 'Unverified'}
+                        <span className={`status-badge ${
+                          user.banned ? 'banned' :
+                          user.role === 'Service Provider' ? 'approved' :
+                          user.role === 'Service Provider Applicant' ? 'pending' :
+                          user.verified ? 'approved' : 'pending'
+                        }`}>
+                          {user.banned ? 'Banned' :
+                           user.role === 'Community Member' ? 'Residents' :
+                           user.role === 'Service Provider' ? 'Verified' :
+                           user.role === 'Service Provider Applicant' ? 'Unverified' :
+                           user.verified ? 'Verified' : 'Unverified'}
                         </span>
                       </td>
                       <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {tab === "pending" && (
-        <div className="content-card">
-          <div className="card-header">
-            <h2>
-              <i className="fas fa-clock"></i> Pending Applications
-            </h2>
-            <span className="count">{pendingApplications.length}</span>
-          </div>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Skills</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingApplications.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="no-data">No pending applications</td>
-                  </tr>
-                ) : (
-                  pendingApplications.map((user) => (
-                    <tr key={user._id}>
-                      <td>
-                        <div className="status-container">
-                          <div className="name">{user.firstName} {user.lastName}</div>
-                          <div className="user-id">ID: {user._id.slice(-6)}</div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="contact-info">
-                          <div className="email">{user.email}</div>
-                        </div>
-                      </td>
-                      <td>{user.skills ? user.skills.join(", ") : "None"}</td>
                       <td>
                         <div className="action-buttons">
-                          <button onClick={() => openAppointmentModal(user._id)} className="action-btn approve-btn">
-                            <i className="fas fa-calendar-plus"></i> Schedule
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowUserModal(true);
+                            }}
+                            className="action-btn view-btn"
+                            title="View user details and manage account"
+                          >
+                            <i className="fas fa-eye"></i>
+                            <span>View</span>
                           </button>
                         </div>
                       </td>
@@ -401,49 +471,66 @@ const UserManagement = () => {
         </div>
       )}
 
-      {tab === "appointments" && (
+      {tab === "applicants" && (
         <div className="content-card">
           <div className="card-header">
             <h2>
-              <i className="fas fa-calendar-check"></i> Appointments
+              <i className="fas fa-user-plus"></i> Service Provider Applicants
             </h2>
-            <span className="count">{appointments.length}</span>
+            <span className="count">{serviceProviderApplicants.length}</span>
           </div>
           <div className="table-container">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Provider</th>
-                  <th>Date</th>
-                  <th>Location</th>
-                  <th>Status</th>
+                  <th>Profile</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Skills</th>
+                  <th>Applied Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {appointments.length === 0 ? (
+                {serviceProviderApplicants.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="no-data">No appointments scheduled</td>
+                    <td colSpan="6" className="no-data">No service provider applications</td>
                   </tr>
                 ) : (
-                  appointments.map((appointment) => (
-                    <tr key={appointment._id}>
-                      <td>{appointment.provider ? `${appointment.provider.firstName} ${appointment.provider.lastName}` : 'Unknown'}</td>
-                      <td>{new Date(appointment.appointmentDate).toLocaleDateString()}</td>
-                      <td>{appointment.location}</td>
+                  serviceProviderApplicants.map((applicant) => (
+                    <tr key={applicant._id}>
                       <td>
-                        <span className={`status-badge ${appointment.status ? appointment.status.toLowerCase() : 'pending'}`}>
-                          {appointment.status || 'Pending'}
-                        </span>
+                        <img
+                          src={applicant.profilePic || "/default-avatar.png"}
+                          alt={`${applicant.firstName} ${applicant.lastName}`}
+                          className="admin-avatar"
+                        />
                       </td>
+                      <td>
+                        <div className="status-container">
+                          <div className="name">{applicant.firstName} {applicant.lastName}</div>
+                          <div className="user-id">ID: {applicant._id.slice(-6)}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="contact-info">
+                          <div className="email">{applicant.email}</div>
+                        </div>
+                      </td>
+                      <td>{applicant.skills ? applicant.skills.join(", ") : "None"}</td>
+                      <td>{new Date(applicant.createdAt).toLocaleDateString()}</td>
                       <td>
                         <div className="action-buttons">
                           <button
-                            className="action-btn secondary-btn"
-                            title="View Applicant Details"
-                            onClick={() => viewApplicant(appointment)}
+                            onClick={() => {
+                              setSelectedApplicant(applicant);
+                              setShowApplicantModal(true);
+                            }}
+                            className="action-btn review-btn"
+                            title="Review applicant details and make decision"
                           >
-                            <i className="fas fa-eye"></i> View
+                            <i className="fas fa-eye"></i>
+                            <span>Review Application</span>
                           </button>
                         </div>
                       </td>
@@ -517,132 +604,765 @@ const UserManagement = () => {
               <button className="close-modal" onClick={() => setShowApplicantModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
-              {selectedApplicant.provider && (
-                <div className="applicant-profile">
-                  <div className="profile-header">
-                    <img
-                      src={selectedApplicant.provider.profilePic || "/default-avatar.png"}
-                      alt={`${selectedApplicant.provider.firstName} ${selectedApplicant.provider.lastName}`}
-                      className="applicant-avatar"
-                    />
-                    <div className="profile-info">
-                      <h3>{selectedApplicant.provider.firstName} {selectedApplicant.provider.lastName}</h3>
-                      <p className="applicant-email">{selectedApplicant.provider.email}</p>
-                      <p className="applicant-id">ID: {selectedApplicant.provider._id.slice(-6)}</p>
-                    </div>
+              <div className="applicant-profile">
+                <div className="profile-header">
+                  <img
+                    src={selectedApplicant.profilePic || "/default-avatar.png"}
+                    alt={`${selectedApplicant.firstName} ${selectedApplicant.lastName}`}
+                    className="applicant-avatar"
+                  />
+                  <div className="profile-info">
+                    <h3>{selectedApplicant.firstName} {selectedApplicant.lastName}</h3>
+                    <p className="applicant-email">{selectedApplicant.email}</p>
+                    <p className="applicant-id">ID: {selectedApplicant._id.slice(-6)}</p>
                   </div>
+                </div>
 
-                  <div className="detail-section">
-                    <h3><i className="fas fa-info-circle"></i> Personal Information</h3>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Phone</label>
-                        <p>{selectedApplicant.provider.phone || 'Not provided'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Address</label>
-                        <p>{selectedApplicant.provider.address || 'Not provided'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Skills</label>
-                        <p>{selectedApplicant.provider.skills ? selectedApplicant.provider.skills.join(", ") : 'None'}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Experience</label>
-                        <p>{selectedApplicant.provider.experience || 'Not provided'}</p>
-                      </div>
+                <div className="detail-section">
+                  <h3><i className="fas fa-info-circle"></i> Personal Information</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Phone</label>
+                      <p>{selectedApplicant.phone || 'Not provided'}</p>
                     </div>
-                  </div>
-
-                  <div className="detail-section">
-                    <h3><i className="fas fa-calendar-alt"></i> Appointment Information</h3>
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <label>Appointment Date</label>
-                        <p>{new Date(selectedApplicant.appointmentDate).toLocaleDateString()}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Appointment Time</label>
-                        <p>{new Date(selectedApplicant.appointmentDate).toLocaleTimeString()}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Location</label>
-                        <p>{selectedApplicant.location}</p>
-                      </div>
-                      <div className="detail-item">
-                        <label>Status</label>
-                        <span className={`status-badge ${selectedApplicant.status ? selectedApplicant.status.toLowerCase() : 'pending'}`}>
-                          {selectedApplicant.status || 'Pending'}
-                        </span>
-                      </div>
+                    <div className="detail-item">
+                      <label>Address</label>
+                      <p>{selectedApplicant.address || 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Birthdate</label>
+                      <p>{selectedApplicant.birthdate ? new Date(selectedApplicant.birthdate).toLocaleDateString() : 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Employment</label>
+                      <p>{selectedApplicant.employed || 'Not provided'}</p>
                     </div>
                   </div>
                 </div>
-              )}
+
+                <div className="detail-section">
+                  <h3><i className="fas fa-tools"></i> Service Provider Application</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Skills</label>
+                      <p>{selectedApplicant.skills && selectedApplicant.skills.length > 0 ? selectedApplicant.skills.join(", ") : 'None specified'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Certificates</label>
+                      <p>{selectedApplicant.certificates && selectedApplicant.certificates.length > 0 ? `${selectedApplicant.certificates.length} uploaded` : 'None uploaded'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Valid ID</label>
+                      <p>{selectedApplicant.validId ? 'Uploaded' : 'Not uploaded'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Applied Date</label>
+                      <p>{new Date(selectedApplicant.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="modal-actions applicant-actions">
-              <button className="cancel-btn" onClick={() => setShowApplicantModal(false)}>Close</button>
-              <div className="action-buttons-group">
+              <div className="decision-section">
+                <div className="decision-header">
+                  <h4><i className="fas fa-gavel"></i> Application Decision</h4>
+                  <p className="decision-subtitle">Choose the appropriate action for this service provider application</p>
+                </div>
+
+                <div className="reject-reason-section" style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#555' }}>
+                    <i className="fas fa-comment-dots"></i> Rejection Reason (required for rejection)
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Please provide a detailed reason for rejecting this application..."
+                    className="reason-textarea"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="action-buttons-grid">
+                  <button
+                    className="action-btn schedule-interview-btn"
+                    onClick={() => openInterviewModal(selectedApplicant._id)}
+                    disabled={actionLoading === 'schedule-interview'}
+                    title="Schedule an interview with this applicant"
+                  >
+                    {actionLoading === 'schedule-interview' ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        <span>Scheduling...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-calendar-plus"></i>
+                        <span>Schedule Interview</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    className="action-btn approve-application-btn"
+                    onClick={() => approveApplicant(selectedApplicant._id)}
+                    disabled={actionLoading === 'approve'}
+                    title="Approve this application and grant service provider status"
+                  >
+                    {actionLoading === 'approve' ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        <span>Approving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-check-circle"></i>
+                        <span>Approve Application</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    className="action-btn reject-application-btn"
+                    onClick={() => rejectApplicant(selectedApplicant._id)}
+                    disabled={actionLoading === 'reject' || !rejectReason.trim()}
+                    title="Reject this application with the provided reason"
+                  >
+                    {actionLoading === 'reject' ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        <span>Rejecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-times-circle"></i>
+                        <span>Reject Application</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    className="action-btn ban-user-btn"
+                    onClick={() => banApplicant(selectedApplicant._id)}
+                    disabled={actionLoading === 'ban'}
+                    title="Permanently ban this user from the platform"
+                  >
+                    {actionLoading === 'ban' ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        <span>Banning...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-user-slash"></i>
+                        <span>Ban User</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="modal-footer-actions">
+                  <button
+                    className="secondary-btn close-modal-btn"
+                    onClick={() => setShowApplicantModal(false)}
+                    disabled={actionLoading !== null}
+                  >
+                    <i className="fas fa-times"></i>
+                    <span>Close</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Edit Modal */}
+      {showServiceModal && selectedUser && (
+        <div className="modal-overlay" onClick={() => setShowServiceModal(false)}>
+          <div className="modal-content service-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header service-modal-header">
+              <div className="modal-title-section">
+                <i className="fas fa-edit modal-icon"></i>
+                <div className="modal-title-content">
+                  <h2>Edit Service Profile</h2>
+                  <p className="modal-subtitle">{selectedUser.firstName} {selectedUser.lastName}</p>
+                </div>
+              </div>
+              <button className="close-modal" onClick={() => setShowServiceModal(false)}>&times;</button>
+            </div>
+
+            <div className="modal-body service-modal-body">
+              {/* <div className="service-instructions">
+                <i className="fas fa-info-circle instruction-icon"></i>
+                <div className="instruction-content">
+                  <h4>Service Management</h4>
+                  <p>Configure the services this provider offers. Each service includes a name, rate, and detailed description.</p>
+                </div>
+              </div> */}
+
+              <div className="services-container">
+                {serviceFormData.map((service, index) => (
+                  <div key={index} className="service-card">
+                    <div className="service-card-header">
+                      <span className="service-badge">{index + 1}</span>
+                      <h4>Service Configuration</h4>
+                      {serviceFormData.length > 1 && (
+                        <button
+                          type="button"
+                          className="remove-service-btn"
+                          onClick={() => {
+                            const newServices = serviceFormData.filter((_, i) => i !== index);
+                            setServiceFormData(newServices);
+                          }}
+                          title="Remove this service"
+                        >
+                          <i className="fas fa-trash-alt"></i>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="service-form-grid">
+                      <div className="form-group service-name-group">
+                        <label className="form-label">
+                          <i className="fas fa-tools"></i>
+                          Service Category
+                        </label>
+                        <div className="select-wrapper">
+                          <select
+                            value={service.name}
+                            onChange={(e) => {
+                              const newServices = [...serviceFormData];
+                              newServices[index].name = e.target.value;
+                              setServiceFormData(newServices);
+                            }}
+                            className="form-input service-select"
+                            required
+                          >
+                            <option value="">Choose a service category</option>
+                            {SERVICE_OPTIONS.map((option) => (
+                              <option key={option.name} value={option.name}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                          <i className="fas fa-chevron-down select-arrow"></i>
+                        </div>
+                      </div>
+
+                      <div className="form-group service-rate-group">
+                        <label className="form-label">
+                          <i className="fas fa-peso-sign"></i>
+                          Service Rate ₱
+                        </label>
+                        <div className="input-wrapper">
+                          <input
+                            type="number"
+                            value={service.rate}
+                            onChange={(e) => {
+                              const newServices = [...serviceFormData];
+                              newServices[index].rate = parseFloat(e.target.value) || 0;
+                              setServiceFormData(newServices);
+                            }}
+                            className="form-input rate-input"
+                            placeholder="0.00"
+                            min="0"
+                            step="50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="form-group service-description-group">
+                      <label className="form-label">
+                        <i className="fas fa-file-alt"></i>
+                        Service Description
+                      </label>
+                      <div className="textarea-wrapper">
+                        <textarea
+                          value={service.description}
+                          onChange={(e) => {
+                            const newServices = [...serviceFormData];
+                            newServices[index].description = e.target.value;
+                            setServiceFormData(newServices);
+                          }}
+                          className="form-input description-textarea"
+                          rows="4"
+                          placeholder="Provide a detailed description of the service offered, including what it includes and any special considerations..."
+                        />
+                        <div className="textarea-footer">
+                          <span className="char-count">{service.description.length}/500</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="add-service-section">
                 <button
-                  className="action-btn approve-btn"
-                  onClick={() => approveApplicant(selectedApplicant.provider._id)}
-                  disabled={actionLoading === 'approve'}
+                  type="button"
+                  className="add-service-btn"
+                  onClick={() => {
+                    setServiceFormData([...serviceFormData, { name: '', rate: 0, description: '' }]);
+                  }}
                 >
-                  {actionLoading === 'approve' ? (
+                  <div className="add-service-content">
+                    <i className="fas fa-plus-circle"></i>
+                    <span>Add New Service</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-actions service-modal-actions">
+              <div className="action-summary">
+                <div className="summary-item">
+                  <span className="summary-label">Total Services:</span>
+                  <span className="summary-value">{serviceFormData.length}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Configured:</span>
+                  <span className="summary-value">{serviceFormData.filter(s => s.name && s.name.trim() !== '').length}</span>
+                </div>
+              </div>
+
+              <div className="action-buttons">
+                <button
+                  className="btn-secondary cancel-btn"
+                  onClick={() => setShowServiceModal(false)}
+                  disabled={actionLoading === 'save-service'}
+                >
+                  <i className="fas fa-times"></i>
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary save-btn"
+                  onClick={handleSaveService}
+                  disabled={actionLoading === 'save-service'}
+                >
+                  {actionLoading === 'save-service' ? (
                     <>
-                      <i className="fas fa-spinner fa-spin"></i> Approving...
+                      <i className="fas fa-spinner fa-spin"></i>
+                      <span>Saving Changes...</span>
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-check"></i> Approve
+                      <i className="fas fa-save"></i>
+                      <span>Save Service Profile</span>
                     </>
                   )}
                 </button>
-                <button
-                  className="action-btn secondary-btn"
-                  onClick={() => declineApplicant(selectedApplicant.provider._id)}
-                  disabled={actionLoading === 'decline'}
-                >
-                  {actionLoading === 'decline' ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i> Declining...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-times"></i> Decline
-                    </>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interview Scheduling Modal */}
+      {showInterviewModal && (
+        <div className="modal-overlay" onClick={() => setShowInterviewModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><i className="fas fa-calendar-plus"></i> Schedule Interview</h2>
+              <button className="close-modal" onClick={() => setShowInterviewModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-section">
+                <h3><i className="fas fa-calendar-alt"></i> Interview Details</h3>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <label>Interview Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={interviewForm.interviewDate}
+                      onChange={(e) => setInterviewForm({...interviewForm, interviewDate: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="detail-item">
+                    <label>Location</label>
+                    <input
+                      type="text"
+                      value={interviewForm.location}
+                      onChange={(e) => setInterviewForm({...interviewForm, location: e.target.value})}
+                      placeholder="Enter interview location"
+                      required
+                    />
+                  </div>
+                  <div className="detail-item full-width">
+                    <label>Notes (Optional)</label>
+                    <textarea
+                      value={interviewForm.notes}
+                      onChange={(e) => setInterviewForm({...interviewForm, notes: e.target.value})}
+                      placeholder="Add any additional notes or instructions for the interview..."
+                      rows="3"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowInterviewModal(false)} disabled={actionLoading === 'schedule-interview'}>Cancel</button>
+              <button className="schedule-btn" onClick={scheduleInterview} disabled={actionLoading === 'schedule-interview'}>
+                {actionLoading === 'schedule-interview' ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i> Scheduling...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-calendar-check"></i> Schedule Interview
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Details Modal */}
+      {showUserModal && selectedUser && (
+        <div className="modal-overlay" onClick={() => setShowUserModal(false)}>
+          <div className="modal-content user-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><i className="fas fa-user-circle"></i> User Profile Details</h2>
+              <button className="close-modal" onClick={() => setShowUserModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="user-profile">
+                <div className="profile-header">
+                  <img
+                    src={selectedUser.profilePic || "/default-avatar.png"}
+                    alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                    className="applicant-avatar"
+                  />
+                  <div className="profile-info">
+                    <h3>{selectedUser.firstName} {selectedUser.lastName}</h3>
+                    <p className="user-email">{selectedUser.email}</p>
+                    <p className="user-id">ID: {selectedUser._id.slice(-6)}</p>
+                    <div className="user-status-badges">
+                      <span className={`status-badge ${selectedUser.banned ? 'banned' : selectedUser.verified ? 'approved' : 'pending'}`}>
+                        {selectedUser.banned ? 'Banned' : selectedUser.verified ? 'Verified' : 'Unverified'}
+                      </span>
+                      <span className={`status-badge ${selectedUser.isOnline ? 'approved' : 'pending'}`}>
+                        {selectedUser.isOnline ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h3><i className="fas fa-id-card"></i> Account Information</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Username</label>
+                      <p>{selectedUser.username}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Full Name</label>
+                      <p>{selectedUser.firstName} {selectedUser.lastName}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Email</label>
+                      <p>{selectedUser.email}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Phone</label>
+                      <p>{selectedUser.phone || 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Other Contact</label>
+                      <p>{selectedUser.otherContact || 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Role</label>
+                      <p>{selectedUser.role === 'Community Member' ? 'Community Resident' : selectedUser.role}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Member Since</label>
+                      <p>{new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h3><i className="fas fa-user"></i> Personal Information</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Birthdate</label>
+                      <p>{selectedUser.birthdate ? new Date(selectedUser.birthdate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Occupation</label>
+                      <p>{selectedUser.occupation || 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Employment Status</label>
+                      <p>{selectedUser.employed || 'Not provided'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Availability</label>
+                      <p>{selectedUser.availability || 'Not Available'}</p>
+                    </div>
+                    <div className="detail-item">
+                      <label>Accepted Work</label>
+                      <p>{selectedUser.acceptedWork ? 'Yes' : 'No'}</p>
+                    </div>
+                    <div className="detail-item full-width">
+                      <label>Address</label>
+                      <p>{selectedUser.address || 'No address information provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(selectedUser.skills && selectedUser.skills.length > 0) && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-tools"></i> Skills & Expertise ({selectedUser.skills.length})</h3>
+                    <div className="skills-grid">
+                      {selectedUser.skills.map((skill, index) => (
+                        <span key={index} className="skill-tag">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedUser.certificates && selectedUser.certificates.length > 0) && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-certificate"></i> Certificates ({selectedUser.certificates.length})</h3>
+                    <div className="documents-preview">
+                      {selectedUser.certificates.map((cert, index) => (
+                        <div key={index} className="document-item">
+                          <div className="document-info">
+                            <i className="fas fa-file-alt"></i>
+                            <span>Certificate {index + 1}</span>
+                          </div>
+                          <div className="document-preview">
+                            {cert.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                              <img
+                                src={cert}
+                                alt={`Certificate ${index + 1}`}
+                                className="document-image"
+                                onClick={() => window.open(cert, '_blank')}
+                              />
+                            ) : (
+                              <div className="document-placeholder">
+                                <i className="fas fa-file-pdf"></i>
+                                <span>PDF Document</span>
+                                <button
+                                  className="preview-btn"
+                                  onClick={() => window.open(cert, '_blank')}
+                                >
+                                  <i className="fas fa-external-link-alt"></i> View
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.validId && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-id-badge"></i> Government ID</h3>
+                    <div className="document-preview">
+                      <div className="document-item">
+                        <div className="document-info">
+                          <i className="fas fa-id-card"></i>
+                          <span>Valid ID Document</span>
+                        </div>
+                        <div className="document-preview">
+                          {selectedUser.validId.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                            <img
+                              src={selectedUser.validId}
+                              alt="Valid ID"
+                              className="document-image"
+                              onClick={() => window.open(selectedUser.validId, '_blank')}
+                            />
+                          ) : (
+                            <div className="document-placeholder">
+                              <i className="fas fa-file-pdf"></i>
+                              <span>ID Document</span>
+                              <button
+                                className="preview-btn"
+                                onClick={() => window.open(selectedUser.validId, '_blank')}
+                              >
+                                <i className="fas fa-external-link-alt"></i> View
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.notificationPreferences && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-bell"></i> Notification Preferences</h3>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>E-Receipts</label>
+                        <p>{selectedUser.notificationPreferences.eReceipts ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                      <div className="detail-item">
+                        <label>Proof of Delivery</label>
+                        <p>{selectedUser.notificationPreferences.proofOfDelivery ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                      <div className="detail-item">
+                        <label>Email Notifications</label>
+                        <p>{selectedUser.notificationPreferences.emailNotifications ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                      <div className="detail-item">
+                        <label>Push Notifications</label>
+                        <p>{selectedUser.notificationPreferences.pushNotifications ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(selectedUser.blockedUsers && selectedUser.blockedUsers.length > 0) && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-user-slash"></i> Blocked Users</h3>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>Total Blocked</label>
+                        <p>{selectedUser.blockedUsers.length} user{selectedUser.blockedUsers.length !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.role === 'Service Provider' && selectedUser.services && selectedUser.services.length > 0 && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-concierge-bell"></i> Services Offered ({selectedUser.services.length})</h3>
+                    <div className="services-grid">
+                      {selectedUser.services.map((service, index) => (
+                        <div key={index} className="service-card-item">
+                          <h4>{service.name}</h4>
+                          <div className="service-rate">₱{service.rate.toLocaleString()}</div>
+                          <p className="service-description">{service.description || 'No description available'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(selectedUser.bookings && selectedUser.bookings.length > 0) && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-calendar-check"></i> Booking History</h3>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>Total Bookings</label>
+                        <p>{selectedUser.bookings.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(selectedUser.notifications && selectedUser.notifications.length > 0) && (
+                  <div className="detail-section">
+                    <h3><i className="fas fa-bell"></i> Notifications</h3>
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <label>Total Notifications</label>
+                        <p>{selectedUser.notifications.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-actions user-modal-actions">
+              <div className="decision-section">
+                <div className="decision-header">
+                  <h4><i className="fas fa-cogs"></i> Account Management</h4>
+                  <p className="decision-subtitle">Manage this user's account status and permissions</p>
+                </div>
+
+                <div className="action-buttons-grid">
+                  {!selectedUser.verified && (
+                    <button
+                      className="action-btn verify-account-btn"
+                      onClick={() => {
+                        verifyUser(selectedUser._id);
+                        setShowUserModal(false);
+                      }}
+                      disabled={actionLoading === 'verify'}
+                      title="Verify this user's account"
+                    >
+                      {actionLoading === 'verify' ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          <span>Verifying...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-check-circle"></i>
+                          <span>Verify Account</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
-                <button
-                  className="action-btn secondary-btn"
-                  onClick={() => suspendApplicant(selectedApplicant.provider._id)}
-                  disabled={actionLoading === 'suspend'}
-                >
-                  {actionLoading === 'suspend' ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i> Suspending...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-pause"></i> Suspend
-                    </>
+
+                  {selectedUser.role === 'Service Provider' && (
+                    <button
+                      className="action-btn edit-services-btn"
+                      onClick={() => {
+                        setServiceFormData(selectedUser.services && selectedUser.services.length > 0 ? selectedUser.services : [{ name: '', rate: 0, description: '' }]);
+                        setShowServiceModal(true);
+                        setShowUserModal(false);
+                      }}
+                      title="Edit this service provider's services"
+                    >
+                      <i className="fas fa-edit"></i>
+                      <span>Edit Services</span>
+                    </button>
                   )}
-                </button>
-                <button
-                  className="action-btn decline-btn"
-                  onClick={() => banApplicant(selectedApplicant.provider._id)}
-                  disabled={actionLoading === 'ban'}
-                >
-                  {actionLoading === 'ban' ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i> Banning...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-ban"></i> Ban
-                    </>
+
+                  {!selectedUser.banned && (
+                    <button
+                      className="action-btn ban-user-btn"
+                      onClick={() => {
+                        banUser(selectedUser._id);
+                        setShowUserModal(false);
+                      }}
+                      disabled={actionLoading === 'ban'}
+                      title="Permanently ban this user from the platform"
+                    >
+                      {actionLoading === 'ban' ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          <span>Banning...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-user-slash"></i>
+                          <span>Ban Account</span>
+                        </>
+                      )}
+                    </button>
                   )}
-                </button>
+
+                  <button
+                    className="action-btn close-modal-btn"
+                    onClick={() => setShowUserModal(false)}
+                    disabled={actionLoading !== null}
+                    title="Close this modal"
+                  >
+                    <i className="fas fa-times"></i>
+                    <span>Close</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

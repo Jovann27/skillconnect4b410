@@ -1,36 +1,45 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import apiClient from '../../api';
 
 // Placeholder screen for editing the user's first name
-export default function EditFirstName({ navigation }) {
-  // Initialize with the current user's first name (simulated)
-  const [firstName, setFirstName] = useState('Jeremy');
+export default function EditFirstName({ navigation, route }) {
+  const { currentValue } = route.params || {};
+  const [firstName, setFirstName] = useState(currentValue || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  // This function would typically call an API or update global state (like context or Redux)
-  const handleSave = () => {
+  useEffect(() => {
+    if (currentValue) {
+      setFirstName(currentValue);
+    }
+  }, [currentValue]);
+
+  const handleSave = async () => {
     if (firstName.trim() === '') {
-      // In a real app, you'd show a custom error modal/message here
-      console.log('First name cannot be empty.'); 
+      Alert.alert('Error', 'First name cannot be empty.');
       return;
     }
 
     setIsSaving(true);
-    console.log(`Saving new first name: ${firstName}`);
 
-    // ✅ Instantly save and close popup
-    console.log(`New first name saved: ${firstName}`);
-    navigation.goBack(); // Close immediately
-  
-    
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      const response = await apiClient.put('/update-profile', { firstName: firstName.trim() });
+
+      if (response.data.success) {
+        Alert.alert('Success', 'Your first name has been updated!', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Error', response.data.message || 'Failed to update first name');
+      }
+    } catch (error) {
+      console.error('Error updating first name:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update first name. Please try again.';
+      Alert.alert('Error', errorMessage);
+    } finally {
       setIsSaving(false);
-      // In a real app, navigate back to the Profile screen after successful save
-      // navigation.goBack();
-      console.log('First name saved successfully!');
-    }, 1500); 
+    }
   };
 
   return (

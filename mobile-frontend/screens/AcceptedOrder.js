@@ -1,8 +1,42 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from "react-native";
+import apiClient from "../api";
 
-export default function AcceptedScreen({ navigation }) {
-  const handleCancel = () => {
+export default function AcceptedScreen({ route, navigation }) {
+  const { serviceRequestId } = route.params || {};
+  const [serviceRequest, setServiceRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (serviceRequestId) {
+      fetchServiceRequest();
+    } else {
+      setError("No service request ID provided");
+      setLoading(false);
+    }
+  }, [serviceRequestId]);
+
+  const fetchServiceRequest = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get(`/user/service-request/${serviceRequestId}`);
+      if (response.data.success) {
+        setServiceRequest(response.data.request);
+      } else {
+        setError("Failed to fetch order details");
+      }
+    } catch (err) {
+      console.error("Error fetching service request:", err);
+      setError(err.response?.data?.message || "Failed to load order details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!serviceRequest?._id) return;
+
     Alert.alert(
       "Cancel Order",
       "Are you sure you want to cancel this order?",
@@ -11,9 +45,15 @@ export default function AcceptedScreen({ navigation }) {
         {
           text: "Yes, Cancel",
           style: "destructive",
-          onPress: () => {
-            Alert.alert("Order Cancelled");
-            navigation.navigate("PlaceOrder");
+          onPress: async () => {
+            try {
+              await apiClient.delete(`/user/service-request/${serviceRequest._id}/cancel`);
+              Alert.alert("Success", "Order cancelled successfully");
+              navigation.navigate("PlaceOrder");
+            } catch (err) {
+              console.error("Error cancelling order:", err);
+              Alert.alert("Error", "Failed to cancel the order. Please try again.");
+            }
           },
         },
       ]
@@ -21,61 +61,93 @@ export default function AcceptedScreen({ navigation }) {
   };
 
   const handleChat = () => {
-    navigation.navigate("ChatScreen"); // Placeholder for chat navigation
+    navigation.navigate("ChatScreen", {
+      serviceRequestId: serviceRequest._id,
+      worker: serviceRequest.serviceProvider
+    });
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#B7B5FF" />
+        <Text style={styles.loadingText}>Loading order details...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchServiceRequest}>
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  const worker = serviceRequest?.serviceProvider;
+  const requester = serviceRequest?.requester;
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerText}>Status: Accepted</Text>
-        <Text style={styles.headerText}>Date: 2025-10-07</Text>
-        <Text style={styles.headerText}>Time: Morning</Text>
+        <Text style={styles.headerText}>Status: {serviceRequest?.status || "Accepted"}</Text>
+        <Text style={styles.headerText}>Date: {formatDate(serviceRequest?.createdAt)}</Text>
+        <Text style={styles.headerText}>Time: {serviceRequest?.time || "N/A"}</Text>
       </View>
 
       {/* Worker Info */}
       <View style={styles.workerBox}>
         <Image
           source={{
-            uri: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+            uri: worker?.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
           }}
           style={styles.workerImage}
         />
         <View style={styles.workerInfo}>
-          <Text style={styles.workerName}>Juan Dela Cruz</Text>
-          <Text style={styles.workerDetail}>Skill: Plumbing</Text>
-          <Text style={styles.workerDetail}>Phone: 09123456789</Text>
-
-         
+          <Text style={styles.workerName}>
+            {worker ? `${worker.firstName} ${worker.lastName}` : "Worker Not Assigned"}
+          </Text>
+          <Text style={styles.workerDetail}>Skill: {serviceRequest?.typeOfWork || "N/A"}</Text>
+          <Text style={styles.workerDetail}>Phone: {worker?.phone || "N/A"}</Text>
         </View>
       </View>
 
       {/* Customer Details */}
       <View style={styles.detailsBox}>
         <Text style={styles.text}>
-          <Text style={styles.label}>Customer Name:</Text> John Doe
+          <Text style={styles.label}>Customer Name:</Text> {serviceRequest?.name || "N/A"}
         </Text>
         <Text style={styles.text}>
-          <Text style={styles.label}>Address:</Text> 123 Main St
+          <Text style={styles.label}>Address:</Text> {serviceRequest?.address || "N/A"}
         </Text>
         <Text style={styles.text}>
-          <Text style={styles.label}>Phone #:</Text> 09123456789
+          <Text style={styles.label}>Phone #:</Text> {serviceRequest?.phone || "N/A"}
         </Text>
       </View>
 
       {/* Order Details */}
       <View style={styles.workBox}>
         <Text style={styles.text}>
-          <Text style={styles.label}>Type of Work:</Text> Plumbing
+          <Text style={styles.label}>Type of Work:</Text> {serviceRequest?.typeOfWork || "N/A"}
         </Text>
         <Text style={styles.text}>
-          <Text style={styles.label}>Assigned to favourite worker first</Text>
+          <Text style={styles.label}>Assigned to favourite worker first:</Text> {serviceRequest?.targetProvider ? "Yes" : "No"}
         </Text>
         <Text style={styles.text}>
-          <Text style={styles.label}>Budget:</Text> ₱300
+          <Text style={styles.label}>Budget:</Text> ₱{serviceRequest?.budget || "N/A"}
         </Text>
         <Text style={styles.text}>
-          <Text style={styles.label}>Note:</Text> Please come ASAP.
+          <Text style={styles.label}>Note:</Text> {serviceRequest?.notes || "None"}
         </Text>
       </View>
 
@@ -194,5 +266,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#000",
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#E53935",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#B7B5FF",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

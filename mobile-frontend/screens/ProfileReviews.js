@@ -17,41 +17,52 @@ const { width } = Dimensions.get("window");
 
 export default function ProfileReviews({ route, navigation }) {
   const [reviews, setReviews] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const userId = route.params?.userId || "123";
   const fromFavorites = route.params?.fromFavorites || false;
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await apiClient.get(`/user/profile/${userId}`);
+      if (response.data.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log("Error fetching user profile:", error);
+      // Keep default profile data
+    }
+  };
+
+  const fetchReviewStats = async () => {
+    try {
+      const response = await apiClient.get(`/reviews/stats/${userId}`);
+      if (response.data.success) {
+        const stats = response.data.stats;
+        setUserProfile(prev => prev ? { ...prev, ...stats } : stats);
+      }
+    } catch (error) {
+      console.log("Error fetching review stats:", error);
+      // Keep default stats
+    }
+  };
 
   const fetchReviews = async () => {
     try {
       const response = await apiClient.get(`/reviews/user/${userId}`);
-      setReviews(response.data);
+      if (response.data.success) {
+        setReviews(response.data.reviews);
+      } else {
+        throw new Error("Failed to fetch reviews");
+      }
     } catch (error) {
       console.log("Error fetching reviews:", error);
-
-      // fallback data (some with photos, some without)
-      setReviews([
-        {
-          id: "1",
-          clientName: "Jeremy Alburea",
-          service: "Plumbing",
-          rating: 4,
-          comment:
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean commodo ligula eget dolor.",
-          images: [], // no photo uploaded
-        },
-        {
-          id: "2",
-          clientName: "Darlene Faith",
-          service: "Electrical",
-          rating: 5,
-          comment:
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean massa.",
-          images: ["https://via.placeholder.com/150"], // has images
-        },
-      ]);
+      setReviews([]); // Set empty array when no reviews available
     }
   };
 
   useEffect(() => {
+    fetchUserProfile();
+    fetchReviewStats();
     fetchReviews();
   }, []);
 
@@ -113,19 +124,31 @@ export default function ProfileReviews({ route, navigation }) {
       {/* Worker Profile Header */}
       <View style={styles.profileHeader}>
         <Image
-          source={require("../assets/default-profile.png")}
+          source={
+            userProfile?.profilePic
+              ? { uri: userProfile.profilePic }
+              : require("../assets/default-profile.png")
+          }
           style={styles.workerProfileImage}
         />
-        <Text style={styles.workerName}>Juan Dela Cruz</Text>
-        <Text style={styles.workerSkills}>Plumbing • Electrical</Text>
+        <Text style={styles.workerName}>
+          {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : "Juan Dela Cruz"}
+        </Text>
+        <Text style={styles.workerSkills}>
+          {userProfile?.skills?.length > 0 ? userProfile.skills.join(" • ") : "Plumbing • Electrical"}
+        </Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Ionicons name="star" size={16} color="#f1c40f" />
-            <Text style={styles.statText}>4.8 Rating</Text>
+            <Text style={styles.statText}>
+              {userProfile?.averageRating ? `${userProfile.averageRating} Rating` : "4.8 Rating"}
+            </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statText}>3 Job Orders</Text>
+            <Text style={styles.statText}>
+              {userProfile?.totalReviews ? `${userProfile.totalReviews} Reviews` : "3 Job Orders"}
+            </Text>
           </View>
         </View>
 
@@ -154,12 +177,16 @@ export default function ProfileReviews({ route, navigation }) {
       {/* Reviews Section */}
       <View style={styles.reviewsSection}>
         <Text style={styles.reviewsTitle}>Reviews</Text>
-        <FlatList
-          data={reviews}
-          keyExtractor={(item) => item.id}
-          renderItem={renderReview}
-          scrollEnabled={false}
-        />
+        {reviews.length === 0 ? (
+          <Text style={styles.noReviewsText}>No reviews yet</Text>
+        ) : (
+          <FlatList
+            data={reviews}
+            keyExtractor={(item) => item.id}
+            renderItem={renderReview}
+            scrollEnabled={false}
+          />
+        )}
       </View>
     </ScrollView>
   );
@@ -272,5 +299,12 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
     marginTop: 15,
+  },
+  noReviewsText: {
+    textAlign: "center",
+    color: "#777",
+    fontSize: 16,
+    marginTop: 20,
+    fontStyle: "italic",
   },
 });

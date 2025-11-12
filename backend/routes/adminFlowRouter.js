@@ -4,17 +4,21 @@ import {
   scheduleVerificationAppointment,
   updateVerificationAppointment,
   getPendingProviderApplications,
+  getServices,
   addUserService,
   editUserService,
   deleteUserService,
-  getUserServices
+  getUserServices,
+  scheduleInterview
 } from "../controllers/adminFlowController.js";
 
 const router = express.Router();
 
 router.post("/verification/schedule", isAdminAuthenticated, scheduleVerificationAppointment);
 router.put("/verification/:id", isAdminAuthenticated, updateVerificationAppointment);
+router.post("/schedule-interview", isAdminAuthenticated, scheduleInterview);
 router.get("/verification/pending", isAdminAuthenticated, getPendingProviderApplications);
+router.get("/services", isAdminAuthenticated, getServices);
 
 // User service management
 router.post("/user/:userId/service/add", isAdminAuthenticated, addUserService);

@@ -9,95 +9,96 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { useMainContext } from "../contexts/MainContext";
 
 export default function Clients({ navigation }) {
-  const [clients, setClients] = useState([]);
+  const { api, user } = useMainContext();
+  const [serviceRequests, setServiceRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null); // Track which request is being processed
 
+  // Fetch service requests on component mount
   useEffect(() => {
-    const fetchClients = async () => {
-      setIsLoading(true);
-      try {
-        const storedUser = await AsyncStorage.getItem("userData");
-        const user = JSON.parse(storedUser);
-        const userService = user?.services || [];
-
-        // Mock data (replace with API later)
-        const fakeClients = [
-          {
-            id: 1,
-            name: "Jeremy Albuera",
-            email: "albuera@gmail.com",
-            phone: "09123456789",
-            service: "Yapperist",
-            budget: "₱300",
-            date: "10-18-2025",
-            time: "9:00AM - 12:00PM",
-            location: "Bahay ng Nigga",
-            note: "Please arrive early and bring materials.",
-            photo: null,
-          },
-          {
-            id: 2,
-            name: "Maria Santos",
-            email: "maria@gmail.com",
-            phone: "09999999999",
-            service: "Plumbing",
-            budget: "₱500",
-            date: "10-20-2025",
-            time: "1:00PM - 3:00PM",
-            location: "Barangay 2, Street 10",
-            note: "Urgent repair needed.",
-            photo: null,
-          },
-        ];
-
-        const filtered =
-          userService.length > 0
-            ? fakeClients.filter((c) => userService.includes(c.service))
-            : fakeClients;
-
-        setClients(filtered);
-      } catch (err) {
-        console.log("Error loading clients:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchClients();
+    fetchServiceRequests();
   }, []);
 
-  const handleAccept = (client) => {
-    Alert.alert("Request Accepted", `You accepted ${client.name}'s request.`, [
-      {
-        text: "OK",
-        onPress: () => navigation.navigate("ClientAccepted", { client }),
-      },
-    ]);
+  const fetchServiceRequests = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.getServiceRequests();
+      if (response.data.success) {
+        setServiceRequests(response.data.requests);
+      }
+    } catch (error) {
+      console.error('Error fetching service requests:', error);
+      Alert.alert('Error', 'Failed to load service requests');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDecline = (client) =>
-    Alert.alert("Request Declined", `You declined ${client.name}'s request.`);
+  const handleAccept = async (request) => {
+    try {
+      setActionLoading(request._id);
+      const response = await api.acceptServiceRequest(request._id);
 
-  const renderClient = ({ item }) => (
+      if (response.data.success) {
+        Alert.alert("Request Accepted", `You accepted ${request.fullName}'s request.`, [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("ClientAccepted", { requestId: request._id }),
+          },
+        ]);
+        // Refresh the list to remove the accepted request
+        fetchServiceRequests();
+      } else {
+        Alert.alert("Error", "Failed to accept the request. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error accepting service request:", error);
+      Alert.alert("Error", "Failed to accept the request. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDecline = async (request) => {
+    try {
+      setActionLoading(request._id);
+      const response = await api.ignoreServiceRequest(request._id);
+
+      if (response.data.success) {
+        Alert.alert("Request Declined", `You declined ${request.fullName}'s request.`);
+        // Refresh the list to remove the declined request
+        fetchServiceRequests();
+      } else {
+        Alert.alert("Error", "Failed to decline the request. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error declining service request:", error);
+      Alert.alert("Error", "Failed to decline the request. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const renderServiceRequest = ({ item }) => (
     <View style={styles.card}>
       {/* Client Header */}
       <View style={styles.profileHeader}>
         <Image
           source={
-            item.photo
-              ? { uri: item.photo }
+            item.requester?.profilePic
+              ? { uri: item.requester.profilePic }
               : require("../assets/default-profile.png")
           }
           style={styles.avatar}
         />
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.info}> {item.email}</Text>
-          <Text style={styles.info}> {item.phone}</Text>
+          <Text style={styles.name}>{item.fullName || `${item.requester?.firstName} ${item.requester?.lastName}`}</Text>
+          <Text style={styles.info}>{item.requester?.email}</Text>
+          <Text style={styles.info}>{item.requester?.phone || 'Phone not provided'}</Text>
         </View>
       </View>
 
@@ -105,30 +106,43 @@ export default function Clients({ navigation }) {
 
       {/* Service Info */}
       <View style={styles.details}>
-        <Detail icon="briefcase-outline" label="Service Needed" value={item.service} />
-        <Detail icon="cash-outline" label="Budget" value={item.budget} />
-        <Detail icon="calendar-outline" label="Date Required" value={item.date} />
-        <Detail icon="time-outline" label="Preferred Time" value={item.time} />
-        <Detail icon="location-outline" label="Location" value={item.location} />
-        {item.note && <Detail icon="document-text-outline" label="Note" value={item.note} />}
+        <Detail icon="briefcase-outline" label="Service Needed" value={item.typeOfWork || 'Not specified'} />
+        <Detail icon="cash-outline" label="Budget" value={`₱${item.budget || 0}`} />
+        <Detail icon="calendar-outline" label="Date Created" value={item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Not specified'} />
+        <Detail icon="time-outline" label="Preferred Time" value={item.time || 'Not specified'} />
+        {item.notes && <Detail icon="document-text-outline" label="Notes" value={item.notes} />}
       </View>
 
       {/* Action Buttons */}
       <View style={styles.buttonRow}>
         <TouchableOpacity
-          style={[styles.button, styles.accept]}
+          style={[styles.button, styles.accept, actionLoading === item._id && { opacity: 0.6 }]}
           onPress={() => handleAccept(item)}
+          disabled={actionLoading === item._id}
         >
-          <Ionicons name="checkmark-circle" size={18} color="#fff" />
-          <Text style={styles.buttonText}>Accept</Text>
+          {actionLoading === item._id ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          )}
+          <Text style={styles.buttonText}>
+            {actionLoading === item._id ? 'Accepting...' : 'Accept'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.decline]}
+          style={[styles.button, styles.decline, actionLoading === item._id && { opacity: 0.6 }]}
           onPress={() => handleDecline(item)}
+          disabled={actionLoading === item._id}
         >
-          <Ionicons name="close-circle" size={18} color="#fff" />
-          <Text style={styles.buttonText}>Decline</Text>
+          {actionLoading === item._id ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="close-circle" size={18} color="#fff" />
+          )}
+          <Text style={styles.buttonText}>
+            {actionLoading === item._id ? 'Declining...' : 'Decline'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -138,19 +152,19 @@ export default function Clients({ navigation }) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#c20884" />
-        <Text style={{ color: "#555", marginTop: 10 }}>Loading clients...</Text>
+        <Text style={{ color: "#555", marginTop: 10 }}>Loading service requests...</Text>
       </View>
     );
 
   return (
     <View style={styles.container}>
-      {clients.length === 0 ? (
-        <Text style={styles.noData}>No client requests found.</Text>
+      {serviceRequests.length === 0 ? (
+        <Text style={styles.noData}>No service requests found.</Text>
       ) : (
         <FlatList
-          data={clients}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderClient}
+          data={serviceRequests}
+          keyExtractor={(item) => item._id}
+          renderItem={renderServiceRequest}
           showsVerticalScrollIndicator={false}
         />
       )}

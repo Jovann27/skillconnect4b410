@@ -2,6 +2,7 @@ import User from "../models/userSchema.js";
 import { catchAsyncError } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/error.js";
 import sendToken from "../utils/jwtToken.js";
+import { sendNotification } from "../utils/socketNotify.js";
 import cloudinary from "cloudinary";
 import bcrypt from "bcryptjs";
 import fs from "fs";
@@ -21,6 +22,10 @@ export const register = catchAsyncError(async (req, res, next) => {
 
   if (!username || !firstName || !lastName || !email || !phone || !address || !birthdate || !employed || !password || !confirmPassword || !role) {
     return next(new ErrorHandler("Please fill up all required fields", 400));
+  }
+
+  if (!["Community Member", "Service Provider Applicant"].includes(role)) {
+    return next(new ErrorHandler("Invalid role selected", 400));
   }
 
   if (!["employed", "unemployed"].includes(employed)) {
@@ -51,9 +56,9 @@ export const register = catchAsyncError(async (req, res, next) => {
   const validIdFile = req.files?.validId;
   let uploadedFiles = {};
 
-  // Only require validId for Service Providers
-  if (role === "Service Provider") {
-    if (!validIdFile) return next(new ErrorHandler("Valid ID is required for Service Providers", 400));
+  // Only require validId for Service Provider Applicants (they need to provide ID for verification)
+  if (role === "Service Provider Applicant") {
+    if (!validIdFile) return next(new ErrorHandler("Valid ID is required for Service Provider applications", 400));
     if (!validIdFile.mimetype.startsWith("image/")) {
       return next(new ErrorHandler("Valid ID must be an image file (JPG, PNG, etc.)", 400));
     }
@@ -85,6 +90,15 @@ export const register = catchAsyncError(async (req, res, next) => {
     certificates: certificatePaths,
     skills: normalizedSkills,
   });
+
+  // Send notification for Service Provider Applicants
+  if (role === "Service Provider Applicant") {
+    await sendNotification(
+      user._id,
+      "Application Under Review",
+      "Your application to become a Service Provider is being reviewed by our administrators. You will receive a notification once your application is approved."
+    );
+  }
 
   sendToken(user, 201, res, "User registered successfully");
 });
@@ -122,6 +136,19 @@ export const logout = catchAsyncError(async (req, res, next) => {
 export const getMyProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to fetch profile" });
+  }
+};
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("-password -email -phone -address -birthdate");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch profile" });
@@ -402,5 +429,135 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     alert: "Password reset successfully",
+  });
+});
+
+// Get user notification preferences
+export const getNotificationPreferences = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const user = await User.findById(userId).select("notificationPreferences email");
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    preferences: {
+      ...user.notificationPreferences,
+      email: user.email
+    }
+  });
+});
+
+// Update user notification preferences
+export const updateNotificationPreferences = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+  const { eReceipts, proofOfDelivery, emailNotifications, pushNotifications } = req.body;
+
+  // Validate input
+  const updates = {};
+  if (typeof eReceipts === 'boolean') updates['notificationPreferences.eReceipts'] = eReceipts;
+  if (typeof proofOfDelivery === 'boolean') updates['notificationPreferences.proofOfDelivery'] = proofOfDelivery;
+  if (typeof emailNotifications === 'boolean') updates['notificationPreferences.emailNotifications'] = emailNotifications;
+  if (typeof pushNotifications === 'boolean') updates['notificationPreferences.pushNotifications'] = pushNotifications;
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    updates,
+    { new: true, runValidators: true }
+  ).select("notificationPreferences email");
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Notification preferences updated successfully",
+    preferences: {
+      ...user.notificationPreferences,
+      email: user.email
+    }
+  });
+});
+
+// Get user's blocked users list
+export const getBlockedUsers = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const user = await User.findById(userId).populate('blockedUsers', 'firstName lastName profilePic skills');
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    blockedUsers: user.blockedUsers
+  });
+});
+
+// Block a user
+export const blockUser = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+  const { targetUserId } = req.body;
+
+  if (!targetUserId) {
+    return next(new ErrorHandler("Target user ID is required", 400));
+  }
+
+  if (userId.toString() === targetUserId.toString()) {
+    return next(new ErrorHandler("Cannot block yourself", 400));
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if target user exists
+  const targetUser = await User.findById(targetUserId);
+  if (!targetUser) {
+    return next(new ErrorHandler("Target user not found", 404));
+  }
+
+  // Check if already blocked
+  if (user.blockedUsers.includes(targetUserId)) {
+    return next(new ErrorHandler("User is already blocked", 400));
+  }
+
+  // Add to blocked users
+  user.blockedUsers.push(targetUserId);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "User blocked successfully"
+  });
+});
+
+// Unblock a user
+export const unblockUser = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+  const { targetUserId } = req.params;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if user is actually blocked
+  const blockedIndex = user.blockedUsers.indexOf(targetUserId);
+  if (blockedIndex === -1) {
+    return next(new ErrorHandler("User is not blocked", 400));
+  }
+
+  // Remove from blocked users
+  user.blockedUsers.splice(blockedIndex, 1);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "User unblocked successfully"
   });
 });

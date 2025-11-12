@@ -8,7 +8,7 @@ import { FaFacebookMessenger, FaLocationArrow  } from 'react-icons/fa';
 const ChatIcon = () => {
   const { isAuthorized, tokenType, user, admin, openChatAppointmentId, setOpenChatAppointmentId } = useMainContext();
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState('list'); // 'list' or 'chat' or 'help'
+  const [view, setView] = useState('list'); // 'list' or 'chat' or 'help' or 'help-topics'
   const [chatList, setChatList] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -20,6 +20,9 @@ const ChatIcon = () => {
   const [supportMessages, setSupportMessages] = useState([]);
   const [supportMessage, setSupportMessage] = useState('');
   const [supportLoading, setSupportLoading] = useState(false);
+  const [helpTopics, setHelpTopics] = useState([]);
+  const [selectedHelpTopic, setSelectedHelpTopic] = useState(null);
+  const [helpCategories, setHelpCategories] = useState([]);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -175,6 +178,68 @@ const ChatIcon = () => {
     scrollToBottom();
   }, [messages, isAuthorized, tokenType, user]);
 
+  // Fetch help topics
+  const fetchHelpTopics = () => {
+    setHelpTopics([
+      {
+        id: 1,
+        category: "Account",
+        title: "Password Reset",
+        description: "Forgot your password or need to change it",
+        content: "Go to Settings > Account > Change Password. If you forgot your password, use 'Forgot Password' on the login screen."
+      },
+      {
+        id: 2,
+        category: "Account",
+        title: "Profile Updates",
+        description: "Update your personal information and profile",
+        content: "Navigate to Profile section to edit your name, email, phone, and profile picture."
+      },
+      {
+        id: 3,
+        category: "Booking",
+        title: "How to Book Services",
+        description: "Learn how to find and book skilled workers",
+        content: "Browse skilled users by service type, check their ratings and reviews, then send a service request with your requirements."
+      },
+      {
+        id: 4,
+        category: "Booking",
+        title: "Track Service Requests",
+        description: "Monitor the status of your service bookings",
+        content: "Check your dashboard for active requests. You'll receive notifications when workers respond or accept your requests."
+      },
+      {
+        id: 5,
+        category: "Payments",
+        title: "Payment Methods",
+        description: "Information about payments and billing",
+        content: "Payments are processed securely through our platform. Contact support for billing questions."
+      },
+      {
+        id: 6,
+        category: "Technical",
+        title: "App Issues",
+        description: "Report bugs or technical problems",
+        content: "Please describe the issue you're experiencing. Include your device type and app version for faster resolution."
+      },
+      {
+        id: 7,
+        category: "Technical",
+        title: "Connection Problems",
+        description: "Issues with internet connectivity",
+        content: "Ensure you have a stable internet connection. Try restarting the app or checking your network settings."
+      },
+      {
+        id: 8,
+        category: "General",
+        title: "Contact Support",
+        description: "Get in touch with our support team",
+        content: "Email: skillconnect4b410@gmail.com\nPhone: Available during business hours\nWe'll respond within 24 hours."
+      }
+    ]);
+  };
+
   // Effect to handle opening chat from external trigger
   useEffect(() => {
     if (openChatAppointmentId && chatList.length > 0) {
@@ -195,6 +260,28 @@ const ChatIcon = () => {
     }
   }, [openChatAppointmentId, chatList]);
 
+  // Organize help topics by categories
+  useEffect(() => {
+    if (helpTopics.length > 0) {
+      const categories = {};
+      helpTopics.forEach(topic => {
+        const category = topic.category || 'General';
+        if (!categories[category]) {
+          categories[category] = [];
+        }
+        categories[category].push(topic);
+      });
+      setHelpCategories(Object.entries(categories));
+    }
+  }, [helpTopics]);
+
+  // Fetch help topics when help view is opened
+  useEffect(() => {
+    if (view === 'help' && helpTopics.length === 0) {
+      fetchHelpTopics();
+    }
+  }, [view]);
+
   // Only show for authenticated users (both regular users and admins)
   if (!isAuthorized || (!user && !admin)) {
     return null;
@@ -204,9 +291,24 @@ const ChatIcon = () => {
 
   const fetchMessages = async (appointmentId) => {
     try {
+      // Fetch chat history and filter for this appointment
+      const response = await api.get('/user/chat-history');
+      const appointmentChat = response.data.chatHistory?.find(
+        chat => chat.appointmentId.toString() === appointmentId.toString()
+      );
+      const chatMessages = appointmentChat?.messages || [];
+      setMessages(chatMessages);
+      // Mark messages as seen
+      if (chatMessages.length > 0) {
+        await api.put(`/user/chat/${appointmentId}/mark-seen`);
+      }
+      scrollToBottom();
+
+      // Join socket room
       socket.emit('join-chat', appointmentId);
     } catch (err) {
-      console.error('Error joining chat:', err);
+      console.error('Error fetching chat history:', err);
+      setError('Failed to load chat history');
     }
   };
 
@@ -373,10 +475,20 @@ const ChatIcon = () => {
                 <button className="back-btn" onClick={() => setView('list')}>←</button>
                 <h3>Help Center</h3>
               </>
+            ) : view === 'help-topics' ? (
+              <>
+                <button className="back-btn" onClick={() => setView('help')}>←</button>
+                <h3>Help Topics</h3>
+              </>
             ) : (
               <>
                 <h3>Messages</h3>
-                <button className="close-btn" onClick={toggleChat}>×</button>
+                <div className="header-actions">
+                  <button className="help-header-btn" onClick={() => setView('help')} title="Help">
+                    ?
+                  </button>
+                  <button className="close-btn" onClick={toggleChat}>×</button>
+                </div>
               </>
             )}
           </div>
@@ -486,9 +598,42 @@ const ChatIcon = () => {
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || loading}
                   >
-                    <FaLocationArrow />
+                    Send
                   </button>
                 </div>
+              </div>
+            ) : view === 'help-topics' ? (
+              <div className="help-topics-view">
+                {helpCategories.map(([category, topics]) => (
+                  <div key={category} className="category-section">
+                    <h4 className="category-title">{category}</h4>
+                    {topics.map((topic) => (
+                      <div
+                        key={topic.id}
+                        className="help-topic-item"
+                        onClick={() => {
+                          setSelectedHelpTopic(topic);
+                          setView('help');
+                          // Add user message about the selected topic
+                          const userMsg = { sender: 'user', message: `I need help with: ${topic.title}`, timestamp: new Date() };
+                          setSupportMessages([userMsg]);
+                          setSupportLoading(true);
+                          setTimeout(() => {
+                            const supportMsg = { sender: 'support', message: topic.content, timestamp: new Date() };
+                            setSupportMessages([userMsg, supportMsg]);
+                            setSupportLoading(false);
+                          }, 1000);
+                        }}
+                      >
+                        <div className="help-topic-content">
+                          <h5 className="help-topic-title">{topic.title}</h5>
+                          <p className="help-topic-desc">{topic.description}</p>
+                        </div>
+                        <span className="help-topic-arrow">›</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="chat-messages">
@@ -514,12 +659,16 @@ const ChatIcon = () => {
                       <div className="message other">
                         <div className="message-content">
                           <span>Welcome to Help Center! How can we assist you today?</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-                            <button onClick={() => handleSupportOption('password')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Password Reset</button>
-                            <button onClick={() => handleSupportOption('booking')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Booking Help</button>
-                            <button onClick={() => handleSupportOption('account')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Account Issues</button>
-                            <button onClick={() => handleSupportOption('technical')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Technical Issues</button>
-                            <button onClick={() => handleSupportOption('other')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Other</button>
+                          <div className="quick-actions">
+                            <button className="quick-action-button" onClick={() => handleSupportOption('password')}>Password Reset</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('booking')}>Booking Help</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('account')}>Account Issues</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('technical')}>Technical Issues</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('other')}>Other</button>
+                          </div>
+                          <div className="browse-topics-button">
+                            <span>📋</span>
+                            <span className="browse-topics-text">Browse Help Topics</span>
                           </div>
                         </div>
                       </div>
@@ -531,12 +680,12 @@ const ChatIcon = () => {
                       <div className="message other">
                         <div className="message-content">
                           <span>Is there anything else I can help you with?</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-                            <button onClick={() => handleSupportOption('password')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Password Reset</button>
-                            <button onClick={() => handleSupportOption('booking')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Booking Help</button>
-                            <button onClick={() => handleSupportOption('account')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Account Issues</button>
-                            <button onClick={() => handleSupportOption('technical')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Technical Issues</button>
-                            <button onClick={() => handleSupportOption('other')} style={{ padding: '8px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Other</button>
+                          <div className="quick-actions">
+                            <button className="quick-action-button" onClick={() => handleSupportOption('password')}>Password Reset</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('booking')}>Booking Help</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('account')}>Account Issues</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('technical')}>Technical Issues</button>
+                            <button className="quick-action-button" onClick={() => handleSupportOption('other')}>Other</button>
                           </div>
                         </div>
                       </div>

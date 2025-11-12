@@ -123,6 +123,59 @@ export const getServiceProviders = async (req, res) => {
   }
 };
 
+// Approve Service Provider Applicant
+export const approveServiceProvider = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const user = await User.findById(id);
+
+  if (!user) return next(new ErrorHandler("User not found", 404));
+  if (user.role !== "Service Provider Applicant") return next(new ErrorHandler("User is not a Service Provider Applicant", 400));
+
+  user.role = "Service Provider";
+  user.verified = true;
+  user.availability = "Available"; // Set to available by default
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: `User (${user.firstName} ${user.lastName}) has been approved as a Service Provider.`,
+    user
+  });
+});
+
+// Reject Service Provider Applicant
+export const rejectServiceProvider = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const user = await User.findById(id);
+
+  if (!user) return next(new ErrorHandler("User not found", 404));
+  if (user.role !== "Service Provider Applicant") return next(new ErrorHandler("User is not a Service Provider Applicant", 400));
+
+  user.role = "Community Member"; // Revert to community member
+  user.validId = ""; // Clear the valid ID
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Service Provider application for (${user.firstName} ${user.lastName}) has been rejected.${reason ? ` Reason: ${reason}` : ''}`,
+    user
+  });
+});
+
+// Get Service Provider Applicants
+export const getServiceProviderApplicants = catchAsyncError(async (req, res, next) => {
+  const applicants = await User.find({ role: "Service Provider Applicant" })
+    .select("-password")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: applicants.length,
+    applicants
+  });
+});
+
 //Ban User
 export const banUser = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -139,6 +192,48 @@ export const banUser = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: `User (${user.firstName} ${user.lastName}) has been banned.`,
+  });
+});
+
+// Update user service profile
+export const updateUserServiceProfile = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { services } = req.body;
+
+  const user = await User.findById(id);
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  // Validate services array
+  if (!Array.isArray(services)) {
+    return next(new ErrorHandler("Services must be an array", 400));
+  }
+
+  // Validate each service object
+  for (const service of services) {
+    if (!service.name || typeof service.name !== 'string' || service.name.trim() === '') {
+      return next(new ErrorHandler("Each service must have a valid name", 400));
+    }
+    if (service.rate !== undefined && (typeof service.rate !== 'number' || service.rate < 0)) {
+      return next(new ErrorHandler("Service rate must be a positive number", 400));
+    }
+  }
+
+  // Update services array
+  user.services = services.map(service => ({
+    name: service.name.trim(),
+    rate: service.rate || 0,
+    description: service.description ? service.description.trim() : ''
+  }));
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "User service profile updated successfully",
+    user: {
+      _id: user._id,
+      services: user.services
+    }
   });
 });
 

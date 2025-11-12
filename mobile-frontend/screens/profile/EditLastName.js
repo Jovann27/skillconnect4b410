@@ -1,27 +1,44 @@
-import React, { useState } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,KeyboardAvoidingView,Platform,} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,KeyboardAvoidingView,Platform,Alert} from 'react-native';
 
-export default function EditLastName({ navigation }) {
-  // Initialize with the current user's last name (you can pass this via navigation params later)
-  const [lastName, setLastName] = useState('Albuera');
+import apiClient from '../../api';
+
+export default function EditLastName({ navigation, route }) {
+  const { currentValue } = route.params || {};
+  const [lastName, setLastName] = useState(currentValue || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (currentValue) {
+      setLastName(currentValue);
+    }
+  }, [currentValue]);
+
+  const handleSave = async () => {
     if (lastName.trim() === '') {
-      console.log('Last name cannot be empty.');
+      Alert.alert('Error', 'Last name cannot be empty.');
       return;
     }
 
-    // ✅ Instantly save and close popup
-    console.log(`New last name saved: ${lastName}`);
-    navigation.goBack();
+    setIsSaving(true);
 
-    // Optional: simulate API delay for debugging
-    setTimeout(() => {
+    try {
+      const response = await apiClient.put('/update-profile', { lastName: lastName.trim() });
+
+      if (response.data.success) {
+        Alert.alert('Success', 'Your last name has been updated!', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Error', response.data.message || 'Failed to update last name');
+      }
+    } catch (error) {
+      console.error('Error updating last name:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to update last name. Please try again.';
+      Alert.alert('Error', errorMessage);
+    } finally {
       setIsSaving(false);
-      console.log('Last name saved successfully!');
-    }, 500);
+    }
   };
 
   return (

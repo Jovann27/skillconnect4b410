@@ -1,12 +1,20 @@
-import React, { useState } from "react";
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,} from "react-native";
+import React, { useState, useEffect } from "react";
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ActivityIndicator} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import apiClient from "../../api";
 
-export default function EditEmail({ navigation }) {
-  const [email, setEmail] = useState("m*********@gmail.com");
+export default function EditEmail({ navigation, route }) {
+  const { currentValue } = route.params || {};
+  const [email, setEmail] = useState(currentValue || "");
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (currentValue) {
+      setEmail(currentValue);
+    }
+  }, [currentValue]);
+
+  const handleSave = async () => {
     if (!email.includes("@") || !email.includes(".")) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
@@ -14,12 +22,23 @@ export default function EditEmail({ navigation }) {
 
     setIsSaving(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await apiClient.put('/update-profile', { email });
+
+      if (response.data.success) {
+        Alert.alert("Success", "Your email has been updated!", [
+          { text: "OK", onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to update email");
+      }
+    } catch (error) {
+      console.error("Error updating email:", error);
+      const errorMessage = error.response?.data?.message || "Failed to update email. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
       setIsSaving(false);
-      Alert.alert("Success", "Your email has been updated!");
-      navigation.goBack();
-    }, 1000);
+    }
   };
 
   return (

@@ -19,7 +19,6 @@ export default function Settings({ navigation }) {
     setUser(null);
     setTokenType(null);
     setIsUserVerified(false);
-    navigation.replace("Login");
 
     await AsyncStorage.multiRemove([
       'authToken',
@@ -29,7 +28,7 @@ export default function Settings({ navigation }) {
       'userRole'
     ]);
 
-    // Restart the app
+    // Restart the app to refresh and navigate to login/home
     await Updates.reloadAsync();
   };
 

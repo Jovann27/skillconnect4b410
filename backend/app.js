@@ -18,6 +18,7 @@ import reportRoutes from "./routes/reportsRouter.js";
 import settingsRouter from "./routes/settingsRouter.js";
 import verificationRouter from "./routes/verificationRouter.js";
 import helpRouter from "./routes/helpRouter.js";
+import reviewRouter from "./routes/reviewRouter.js";
 
 import { errorMiddleware } from "./middlewares/error.js";
 
@@ -93,6 +94,7 @@ app.use("/api/v1/settings", settingsRouter);
 app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/verification", verificationRouter);
 app.use("/api/v1/help", helpRouter);
+app.use("/api/v1/reviews", reviewRouter);
 
 // health
 app.get("/api/v1/ping", (req, res) => res.json({ success: true, message: "pong" }));
