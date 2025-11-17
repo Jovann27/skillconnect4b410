@@ -253,7 +253,7 @@ const Navbar = () => {
             </li>
             )}
 
-            {user.role === 'Service Provider' && tokenType !== 'admin' && (
+            {user?.role === 'Service Provider' && tokenType !== 'admin' && (
             <Link to="/user/my-service">
                           <FaCartPlus />
                         </Link>
