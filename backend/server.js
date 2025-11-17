@@ -237,5 +237,5 @@ export { io, onlineUsers };
 dbConnection();
 
 server.listen(PORT, () => {
-  console.log(` Server running at http://192.168.1.11:${PORT}`);
+  console.log(`Server running at http://192.168.1.11:${PORT}`);
 });

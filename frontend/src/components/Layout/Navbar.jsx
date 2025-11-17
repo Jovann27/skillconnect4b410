@@ -205,7 +205,7 @@ const Navbar = () => {
 
         <div className={`navbar-menu ${show ? 'mobile-menu show' : ''}`}>
           <ul className="navbar-menu-list">
-            {(!isAuthorized || tokenType === 'user') && (
+            {!isAuthorized && (
               <>
                 <li role="none">
                   <Link to="/home" className="navbar-link" role="menuitem" aria-label="Go to home page">
@@ -253,7 +253,11 @@ const Navbar = () => {
             </li>
             )}
 
-
+            {user.role === 'Service Provider' && tokenType !== 'admin' && (
+            <Link to="/user/my-service">
+                          <FaCartPlus />
+                        </Link>
+            )}
 
             {/* User Dashboard Dropdown */}
             {user && tokenType !== 'admin' && (
@@ -287,12 +291,9 @@ const Navbar = () => {
                     </li>
                     {user?.role === "Service Provider" && (
                       <li>
-                        <Link to="/user/my-service">
-                          <FaCartPlus /> My Service
-                        </Link>
+                        
                       </li>
                     )}
-
                     <li><Link to="/user/request-service"><FaCartPlus />Request Service</Link></li>
                     <li><Link to="/user/records"><FaFileAlt/>My Records</Link></li>
                     <li><Link to="/user/general-settings"><IoSettingsOutline />General Settings </Link></li>

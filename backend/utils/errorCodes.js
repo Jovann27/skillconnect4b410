@@ -1,0 +1,92 @@
+// Vercel Error Codes Constants
+// Application Errors
+export const ERROR_CODES = {
+  // Application Errors
+  BODY_NOT_A_STRING_FROM_FUNCTION: { code: 'BODY_NOT_A_STRING_FROM_FUNCTION', status: 502, type: 'Function', message: 'Function returned non-string body' },
+  DEPLOYMENT_BLOCKED: { code: 'DEPLOYMENT_BLOCKED', status: 403, type: 'Deployment', message: 'Deployment is blocked' },
+  DEPLOYMENT_DELETED: { code: 'DEPLOYMENT_DELETED', status: 410, type: 'Deployment', message: 'Deployment has been deleted' },
+  DEPLOYMENT_DISABLED: { code: 'DEPLOYMENT_DISABLED', status: 402, type: 'Deployment', message: 'Deployment is disabled' },
+  DEPLOYMENT_NOT_FOUND: { code: 'DEPLOYMENT_NOT_FOUND', status: 404, type: 'Deployment', message: 'Deployment not found' },
+  DEPLOYMENT_NOT_READY_REDIRECTING: { code: 'DEPLOYMENT_NOT_READY_REDIRECTING', status: 303, type: 'Deployment', message: 'Deployment not ready, redirecting' },
+  DEPLOYMENT_PAUSED: { code: 'DEPLOYMENT_PAUSED', status: 503, type: 'Deployment', message: 'Deployment is paused' },
+  DNS_HOSTNAME_EMPTY: { code: 'DNS_HOSTNAME_EMPTY', status: 502, type: 'DNS', message: 'DNS hostname is empty' },
+  DNS_HOSTNAME_NOT_FOUND: { code: 'DNS_HOSTNAME_NOT_FOUND', status: 502, type: 'DNS', message: 'DNS hostname not found' },
+  DNS_HOSTNAME_RESOLVE_FAILED: { code: 'DNS_HOSTNAME_RESOLVE_FAILED', status: 502, type: 'DNS', message: 'DNS hostname resolution failed' },
+  DNS_HOSTNAME_RESOLVED_PRIVATE: { code: 'DNS_HOSTNAME_RESOLVED_PRIVATE', status: 404, type: 'DNS', message: 'DNS hostname resolved to private IP' },
+  DNS_HOSTNAME_SERVER_ERROR: { code: 'DNS_HOSTNAME_SERVER_ERROR', status: 502, type: 'DNS', message: 'DNS hostname server error' },
+  EDGE_FUNCTION_INVOCATION_FAILED: { code: 'EDGE_FUNCTION_INVOCATION_FAILED', status: 500, type: 'Function', message: 'Edge function invocation failed' },
+  EDGE_FUNCTION_INVOCATION_TIMEOUT: { code: 'EDGE_FUNCTION_INVOCATION_TIMEOUT', status: 504, type: 'Function', message: 'Edge function invocation timed out' },
+  FALLBACK_BODY_TOO_LARGE: { code: 'FALLBACK_BODY_TOO_LARGE', status: 502, type: 'Cache', message: 'Fallback body too large' },
+  FUNCTION_INVOCATION_FAILED: { code: 'FUNCTION_INVOCATION_FAILED', status: 500, type: 'Function', message: 'Function invocation failed' },
+  FUNCTION_INVOCATION_TIMEOUT: { code: 'FUNCTION_INVOCATION_TIMEOUT', status: 504, type: 'Function', message: 'Function invocation timed out' },
+  FUNCTION_PAYLOAD_TOO_LARGE: { code: 'FUNCTION_PAYLOAD_TOO_LARGE', status: 413, type: 'Function', message: 'Function payload too large' },
+  FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE: { code: 'FUNCTION_RESPONSE_PAYLOAD_TOO_LARGE', status: 500, type: 'Function', message: 'Function response payload too large' },
+  FUNCTION_THROTTLED: { code: 'FUNCTION_THROTTLED', status: 503, type: 'Function', message: 'Function is throttled' },
+  INFINITE_LOOP_DETECTED: { code: 'INFINITE_LOOP_DETECTED', status: 508, type: 'Runtime', message: 'Infinite loop detected' },
+  INVALID_IMAGE_OPTIMIZE_REQUEST: { code: 'INVALID_IMAGE_OPTIMIZE_REQUEST', status: 400, type: 'Image', message: 'Invalid image optimize request' },
+  INVALID_REQUEST_METHOD: { code: 'INVALID_REQUEST_METHOD', status: 405, type: 'Request', message: 'Invalid request method' },
+  MALFORMED_REQUEST_HEADER: { code: 'MALFORMED_REQUEST_HEADER', status: 400, type: 'Request', message: 'Malformed request header' },
+  MICROFRONTENDS_MIDDLEWARE_ERROR: { code: 'MICROFRONTENDS_MIDDLEWARE_ERROR', status: 500, type: 'Function', message: 'Microfrontends middleware error' },
+  MICROFRONTENDS_MISSING_FALLBACK_ERROR: { code: 'MICROFRONTENDS_MISSING_FALLBACK_ERROR', status: 400, type: 'Function', message: 'Microfrontends missing fallback error' },
+  MIDDLEWARE_INVOCATION_FAILED: { code: 'MIDDLEWARE_INVOCATION_FAILED', status: 500, type: 'Function', message: 'Middleware invocation failed' },
+  MIDDLEWARE_INVOCATION_TIMEOUT: { code: 'MIDDLEWARE_INVOCATION_TIMEOUT', status: 504, type: 'Function', message: 'Middleware invocation timed out' },
+  MIDDLEWARE_RUNTIME_DEPRECATED: { code: 'MIDDLEWARE_RUNTIME_DEPRECATED', status: 503, type: 'Runtime', message: 'Middleware runtime deprecated' },
+  NO_RESPONSE_FROM_FUNCTION: { code: 'NO_RESPONSE_FROM_FUNCTION', status: 502, type: 'Function', message: 'No response from function' },
+  NOT_FOUND: { code: 'NOT_FOUND', status: 404, type: 'Deployment', message: 'Not found' },
+  OPTIMIZED_EXTERNAL_IMAGE_REQUEST_FAILED: { code: 'OPTIMIZED_EXTERNAL_IMAGE_REQUEST_FAILED', status: 502, type: 'Image', message: 'Optimized external image request failed' },
+  OPTIMIZED_EXTERNAL_IMAGE_REQUEST_INVALID: { code: 'OPTIMIZED_EXTERNAL_IMAGE_REQUEST_INVALID', status: 502, type: 'Image', message: 'Optimized external image request invalid' },
+  OPTIMIZED_EXTERNAL_IMAGE_REQUEST_UNAUTHORIZED: { code: 'OPTIMIZED_EXTERNAL_IMAGE_REQUEST_UNAUTHORIZED', status: 502, type: 'Image', message: 'Optimized external image request unauthorized' },
+  OPTIMIZED_EXTERNAL_IMAGE_TOO_MANY_REDIRECTS: { code: 'OPTIMIZED_EXTERNAL_IMAGE_TOO_MANY_REDIRECTS', status: 502, type: 'Image', message: 'Optimized external image too many redirects' },
+  RANGE_END_NOT_VALID: { code: 'RANGE_END_NOT_VALID', status: 416, type: 'Request', message: 'Range end not valid' },
+  RANGE_GROUP_NOT_VALID: { code: 'RANGE_GROUP_NOT_VALID', status: 416, type: 'Request', message: 'Range group not valid' },
+  RANGE_MISSING_UNIT: { code: 'RANGE_MISSING_UNIT', status: 416, type: 'Request', message: 'Range missing unit' },
+  RANGE_START_NOT_VALID: { code: 'RANGE_START_NOT_VALID', status: 416, type: 'Request', message: 'Range start not valid' },
+  RANGE_UNIT_NOT_SUPPORTED: { code: 'RANGE_UNIT_NOT_SUPPORTED', status: 416, type: 'Request', message: 'Range unit not supported' },
+  REQUEST_HEADER_TOO_LARGE: { code: 'REQUEST_HEADER_TOO_LARGE', status: 431, type: 'Request', message: 'Request header too large' },
+  RESOURCE_NOT_FOUND: { code: 'RESOURCE_NOT_FOUND', status: 404, type: 'Request', message: 'Resource not found' },
+  ROUTER_CANNOT_MATCH: { code: 'ROUTER_CANNOT_MATCH', status: 502, type: 'Routing', message: 'Router cannot match' },
+  ROUTER_EXTERNAL_TARGET_CONNECTION_ERROR: { code: 'ROUTER_EXTERNAL_TARGET_CONNECTION_ERROR', status: 502, type: 'Routing', message: 'Router external target connection error' },
+  ROUTER_EXTERNAL_TARGET_ERROR: { code: 'ROUTER_EXTERNAL_TARGET_ERROR', status: 502, type: 'Routing', message: 'Router external target error' },
+  ROUTER_EXTERNAL_TARGET_HANDSHAKE_ERROR: { code: 'ROUTER_EXTERNAL_TARGET_HANDSHAKE_ERROR', status: 502, type: 'Routing', message: 'Router external target handshake error' },
+  ROUTER_TOO_MANY_HAS_SELECTIONS: { code: 'ROUTER_TOO_MANY_HAS_SELECTIONS', status: 502, type: 'Routing', message: 'Router too many has selections' },
+  SANDBOX_NOT_FOUND: { code: 'SANDBOX_NOT_FOUND', status: 404, type: 'Sandbox', message: 'Sandbox not found' },
+  SANDBOX_NOT_LISTENING: { code: 'SANDBOX_NOT_LISTENING', status: 502, type: 'Sandbox', message: 'Sandbox not listening' },
+  SANDBOX_STOPPED: { code: 'SANDBOX_STOPPED', status: 410, type: 'Sandbox', message: 'Sandbox stopped' },
+  TOO_MANY_FILESYSTEM_CHECKS: { code: 'TOO_MANY_FILESYSTEM_CHECKS', status: 502, type: 'Routing', message: 'Too many filesystem checks' },
+  TOO_MANY_FORKS: { code: 'TOO_MANY_FORKS', status: 502, type: 'Routing', message: 'Too many forks' },
+  TOO_MANY_RANGES: { code: 'TOO_MANY_RANGES', status: 416, type: 'Request', message: 'Too many ranges' },
+  URL_TOO_LONG: { code: 'URL_TOO_LONG', status: 414, type: 'Request', message: 'URL too long' },
+
+  // Platform Errors
+  INTERNAL_CACHE_ERROR: { code: 'INTERNAL_CACHE_ERROR', status: 500, type: 'Internal', message: 'Internal cache error' },
+  INTERNAL_CACHE_KEY_TOO_LONG: { code: 'INTERNAL_CACHE_KEY_TOO_LONG', status: 500, type: 'Internal', message: 'Internal cache key too long' },
+  INTERNAL_CACHE_LOCK_FULL: { code: 'INTERNAL_CACHE_LOCK_FULL', status: 500, type: 'Internal', message: 'Internal cache lock full' },
+  INTERNAL_CACHE_LOCK_TIMEOUT: { code: 'INTERNAL_CACHE_LOCK_TIMEOUT', status: 500, type: 'Internal', message: 'Internal cache lock timeout' },
+  INTERNAL_DEPLOYMENT_FETCH_FAILED: { code: 'INTERNAL_DEPLOYMENT_FETCH_FAILED', status: 500, type: 'Internal', message: 'Internal deployment fetch failed' },
+  INTERNAL_EDGE_FUNCTION_INVOCATION_FAILED: { code: 'INTERNAL_EDGE_FUNCTION_INVOCATION_FAILED', status: 500, type: 'Internal', message: 'Internal edge function invocation failed' },
+  INTERNAL_EDGE_FUNCTION_INVOCATION_TIMEOUT: { code: 'INTERNAL_EDGE_FUNCTION_INVOCATION_TIMEOUT', status: 500, type: 'Internal', message: 'Internal edge function invocation timeout' },
+  INTERNAL_FUNCTION_INVOCATION_FAILED: { code: 'INTERNAL_FUNCTION_INVOCATION_FAILED', status: 500, type: 'Internal', message: 'Internal function invocation failed' },
+  INTERNAL_FUNCTION_INVOCATION_TIMEOUT: { code: 'INTERNAL_FUNCTION_INVOCATION_TIMEOUT', status: 500, type: 'Internal', message: 'Internal function invocation timeout' },
+  INTERNAL_FUNCTION_NOT_FOUND: { code: 'INTERNAL_FUNCTION_NOT_FOUND', status: 500, type: 'Internal', message: 'Internal function not found' },
+  INTERNAL_FUNCTION_NOT_READY: { code: 'INTERNAL_FUNCTION_NOT_READY', status: 500, type: 'Internal', message: 'Internal function not ready' },
+  INTERNAL_FUNCTION_SERVICE_UNAVAILABLE: { code: 'INTERNAL_FUNCTION_SERVICE_UNAVAILABLE', status: 500, type: 'Internal', message: 'Internal function service unavailable' },
+  INTERNAL_MICROFRONTENDS_BUILD_ERROR: { code: 'INTERNAL_MICROFRONTENDS_BUILD_ERROR', status: 500, type: 'Internal', message: 'Internal microfrontends build error' },
+  INTERNAL_MICROFRONTENDS_INVALID_CONFIGURATION_ERROR: { code: 'INTERNAL_MICROFRONTENDS_INVALID_CONFIGURATION_ERROR', status: 500, type: 'Internal', message: 'Internal microfrontends invalid configuration error' },
+  INTERNAL_MICROFRONTENDS_UNEXPECTED_ERROR: { code: 'INTERNAL_MICROFRONTENDS_UNEXPECTED_ERROR', status: 500, type: 'Internal', message: 'Internal microfrontends unexpected error' },
+  INTERNAL_MISSING_RESPONSE_FROM_CACHE: { code: 'INTERNAL_MISSING_RESPONSE_FROM_CACHE', status: 500, type: 'Internal', message: 'Internal missing response from cache' },
+  INTERNAL_OPTIMIZED_IMAGE_REQUEST_FAILED: { code: 'INTERNAL_OPTIMIZED_IMAGE_REQUEST_FAILED', status: 500, type: 'Internal', message: 'Internal optimized image request failed' },
+  INTERNAL_ROUTER_CANNOT_PARSE_PATH: { code: 'INTERNAL_ROUTER_CANNOT_PARSE_PATH', status: 500, type: 'Internal', message: 'Internal router cannot parse path' },
+  INTERNAL_STATIC_REQUEST_FAILED: { code: 'INTERNAL_STATIC_REQUEST_FAILED', status: 500, type: 'Internal', message: 'Internal static request failed' },
+  INTERNAL_UNARCHIVE_FAILED: { code: 'INTERNAL_UNARCHIVE_FAILED', status: 500, type: 'Internal', message: 'Internal unarchive failed' },
+  INTERNAL_UNEXPECTED_ERROR: { code: 'INTERNAL_UNEXPECTED_ERROR', status: 500, type: 'Internal', message: 'Internal unexpected error' },
+};
+
+// Helper function to get error by status code
+export const getErrorByStatus = (status) => {
+  return Object.values(ERROR_CODES).find(error => error.status === status);
+};
+
+// Helper function to get error by code
+export const getErrorByCode = (code) => {
+  return ERROR_CODES[code];
+};

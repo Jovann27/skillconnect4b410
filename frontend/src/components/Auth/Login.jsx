@@ -124,7 +124,7 @@ const Login = () => {
         navigate("/user/request-service");
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
+      const errorMessage = error.userMessage || error.response?.data?.message || "Login failed. Please try again.";
       toast.error(errorMessage);
 
       // Set specific error if email/password related
