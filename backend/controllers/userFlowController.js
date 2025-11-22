@@ -74,7 +74,7 @@ export const postServiceRequest = catchAsyncError(async (req, res, next) => {
     notes,
     location: location || null,
     targetProvider,
-    status: "Available",
+    status: "Waiting",
   });
 
   // Find matching VERIFIED providers based on service type and budget within 200 of their rate
@@ -189,7 +189,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
   const providerSkills = req.user.skills || [];
 
   // First, let's see all available requests
-  const allRequests = await ServiceRequest.find({ status: "Available" })
+  const allRequests = await ServiceRequest.find({ status: "Waiting" })
     .populate({
       path: 'requester',
       select: 'firstName lastName username email phone',
@@ -217,7 +217,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
 
   // Also include requests specifically targeted to this provider
   const targetedRequests = await ServiceRequest.find({
-    status: "Available",
+    status: "Waiting",
     targetProvider: req.user._id
   })
   .populate({
@@ -266,7 +266,7 @@ export const getServiceRequests = catchAsyncError(async (req, res, next) => {
 export const getUserServiceRequests = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const requests = await ServiceRequest.find({ requester: req.user._id })
-    .populate('serviceProvider', 'firstName lastName username')
+    .populate('serviceProvider', 'firstName lastName username phone profilePic')
     .sort({ createdAt: -1 });
   res.status(200).json({ success: true, requests });
 });
@@ -275,20 +275,23 @@ export const getServiceRequest = catchAsyncError(async (req, res, next) => {
   if (!req.user) return next(new ErrorHandler("Unauthorized", 401));
   const { id } = req.params;
 
+  // First check authorization without populate
+  const requestCheck = await ServiceRequest.findById(id);
+  if (!requestCheck) return next(new ErrorHandler("Service request not found", 404));
+
+  // Check if user is authorized to view this request
+  if (String(requestCheck.requester) !== String(req.user._id) &&
+      String(requestCheck.serviceProvider) !== String(req.user._id) &&
+      String(requestCheck.targetProvider) !== String(req.user._id) &&
+      req.user.role !== "admin") {
+    return next(new ErrorHandler("Not authorized to view this request", 403));
+  }
+
+  // Now populate and return
   const request = await ServiceRequest.findById(id)
     .populate('requester', 'firstName lastName username email phone')
     .populate('serviceProvider', 'firstName lastName username email phone profilePic serviceRate')
     .populate('targetProvider', 'firstName lastName username');
-
-  if (!request) return next(new ErrorHandler("Service request not found", 404));
-
-  // Check if user is authorized to view this request
-  if (String(request.requester) !== String(req.user._id) &&
-      String(request.serviceProvider) !== String(req.user._id) &&
-      String(request.targetProvider) !== String(req.user._id) &&
-      req.user.role !== "admin") {
-    return next(new ErrorHandler("Not authorized to view this request", 403));
-  }
 
   res.status(200).json({ success: true, request });
 });
@@ -313,7 +316,7 @@ export const cancelServiceRequest = catchAsyncError(async (req, res, next) => {
   await request.save();
 
   // Emit socket event for real-time updates
-  io.emit("service-request-updated", { requestId: request._id, action: "cancelled" });
+  io.to(`service-request-${request._id}`).emit("service-request-updated", { requestId: request._id, action: "cancelled" });
 
   res.status(200).json({ success: true, request });
 });
@@ -324,7 +327,7 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const request = await ServiceRequest.findById(id).populate('requester');
   if (!request) return next(new ErrorHandler("Service Request not found", 404));
-  if (request.status !== "Available") return next(new ErrorHandler("Request is not available", 400));
+  if (request.status !== "Waiting") return next(new ErrorHandler("Request is not available", 400));
 
   // Ensure provider
   const provider = await User.findById(req.user._id);
@@ -341,6 +344,7 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   // Mark request working & set provider
   request.status = "Working";
   request.serviceProvider = provider._id;
+  request.eta = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
   await request.save();
 
   // Notify requester
@@ -352,7 +356,7 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   );
 
   // Emit socket events for real-time updates
-  io.emit("service-request-updated", { requestId: request._id, action: "accepted" });
+  io.to(`service-request-${request._id}`).emit("service-request-updated", { requestId: request._id, action: "accepted" });
   io.emit("booking-updated", { bookingId: booking._id, action: "created" });
 
   res.status(201).json({ success: true, booking, request });
@@ -437,7 +441,7 @@ export const getMatchingRequests = catchAsyncError(async (req, res, next) => {
   const maxBudget = providerRate + tolerance;
 
   const requests = await ServiceRequest.find({
-    status: "Available",
+    status: "Waiting",
     budget: { $gte: minBudget, $lte: maxBudget },
     typeOfWork: new RegExp(providerService, 'i') // Case insensitive match
   })

@@ -39,19 +39,45 @@ export default function OrderDetails({ route, navigation }) {
   };
 
   const handleTrackWorker = () => {
-    navigation.navigate("WaitingForWorker", { orderData: serviceRequest || order });
+    const requestData = serviceRequest || order;
+    // Ensure we have the correct service request ID
+    const orderData = {
+      ...requestData,
+      id: serviceRequest?._id || serviceRequest?.id || order?.id
+    };
+    navigation.navigate("WaitingForWorker", { orderData });
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case "Completed":
+    // Normalize status for display
+    const normalizedStatus = status === "Waiting" ? "Available" : status === "Completed" ? "Complete" : status;
+
+    switch (normalizedStatus) {
+      case "Complete":
         return "#4CAF50";
       case "Cancelled":
         return "#E53935";
       case "Working":
         return "#FFC107";
+      case "Available":
+        return "#FF9800"; // Orange for waiting/available
       default:
         return "#2196F3";
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "Waiting":
+        return "Waiting for Worker";
+      case "Working":
+        return "In Progress";
+      case "Completed":
+        return "Completed";
+      case "Cancelled":
+        return "Cancelled";
+      default:
+        return status;
     }
   };
 
@@ -70,7 +96,7 @@ export default function OrderDetails({ route, navigation }) {
                 { color: getStatusColor(order.status) },
               ]}
             >
-              Status: {order.status}
+              Status: {getStatusText(order.status)}
             </Text>
           </View>
         </View>

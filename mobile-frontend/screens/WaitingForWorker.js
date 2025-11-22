@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import apiClient from "../api";
+import { socket } from "../utils/socket";
 
 const { width } = Dimensions.get("window");
 
@@ -54,7 +55,7 @@ const AnimatedWaiting = () => {
   );
 };
 
-const FloatingAlert = ({ visible, onClose }) => {
+const FloatingAlert = ({ visible, onClose, message = "Order Accepted! Your worker is on the way." }) => {
   const slideAnim = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
@@ -82,8 +83,25 @@ const FloatingAlert = ({ visible, onClose }) => {
   return (
     <Animated.View style={[styles.alertContainer, { transform: [{ translateY: slideAnim }] }]}>
       <Ionicons name="checkmark-circle" size={28} color="#4CAF50" />
-      <Text style={styles.alertText}>Order Accepted! Your worker is on the way.</Text>
+      <Text style={styles.alertText}>{message}</Text>
     </Animated.View>
+  );
+};
+
+const DetailsCard = ({ title, data }) => {
+  return (
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {data.map((item, index) => (
+        <View key={index} style={styles.detailRow}>
+          <Ionicons name="checkmark-circle-outline" size={16} color="#666" />
+          <Text style={styles.infoText}>
+            <Text style={{ fontWeight: "600" }}>{item.label}: </Text>
+            {item.value}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 };
 
@@ -91,7 +109,7 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (status === "ACCEPTED") {
+    if (status === "Available" || status === "Matched") {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 500,
@@ -100,7 +118,37 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
     }
   }, [status]);
 
-  if (status !== "ACCEPTED") {
+  if (status === "Matched") {
+    return (
+      <Animated.View style={[styles.workerCard, { opacity: fadeAnim }]}>
+        <View style={styles.workerTopRow}>
+          <Image
+            source={worker?.image ? { uri: worker.image } : require("../assets/default-profile.png")}
+            style={styles.workerImage}
+          />
+          <View style={styles.workerDetails}>
+            <Text style={styles.workerName}>{worker?.name || "Juan Dela Cruz"}</Text>
+            <Text style={styles.workerSkill}>{worker?.skill || "Plumber"}</Text>
+            <Text style={styles.workerPhone}>{worker?.phone || "09123456789"}</Text>
+          </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={[styles.iconButton, { backgroundColor: "#E8F5E9" }]} onPress={onCall}>
+              <Ionicons name="call-outline" size={20} color="#2E7D32" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.iconButton, { backgroundColor: "#FCE4EC" }]} onPress={onChat}>
+              <Ionicons name="chatbox-ellipses-outline" size={20} color="#C2185B" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.workerFooter}>
+          <Ionicons name="time-outline" size={18} color="#666" />
+          <Text style={styles.workerFooterText}>Service provider is reviewing your request...</Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  if (status !== "Available") {
     return (
       <View style={styles.waitingContainer}>
         <AnimatedWaiting />
@@ -133,25 +181,18 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
       </View>
       <View style={styles.workerFooter}>
         <Ionicons name="navigate-outline" size={18} color="#666" />
-        <Text style={styles.workerFooterText}>Worker is heading to your location...</Text>
+        <Text style={styles.workerFooterText}>
+          Worker is reviewing your request...
+          {worker?.eta && (
+            <Text style={{ fontWeight: "600" }}>
+              {"\n"}ETA: {new Date(worker.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          )}
+        </Text>
       </View>
     </Animated.View>
   );
 };
-
-const DetailsCard = ({ title, data }) => (
-  <View style={styles.infoCard}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    {data.map((item, index) => (
-      <View key={index} style={styles.detailRow}>
-        <Text style={styles.infoText}>
-          <Text style={{ fontWeight: "600" }}>{item.label}: </Text>
-          {item.value}
-        </Text>
-      </View>
-    ))}
-  </View>
-);
 
 const registerForPushNotificationsAsync = async () => {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -183,26 +224,43 @@ export default function WaitingForWorker({ route, navigation }) {
   const [orderStatus, setOrderStatus] = useState("PENDING");
   const [workerData, setWorkerData] = useState(null);
   const [showAlert, setShowAlert] = useState(false);
+  const [showAcceptedAlert, setShowAcceptedAlert] = useState(false);
+  const [showMatchedAlert, setShowMatchedAlert] = useState(false);
+  const [currentRequest, setCurrentRequest] = useState(null);
 
   useEffect(() => {
     registerForPushNotificationsAsync();
   }, []);
 
   useEffect(() => {
-    if (orderStatus === "PENDING") {
-      const pollForAcceptance = async () => {
+    if (orderStatus === "Available") {
+      setShowAcceptedAlert(true);
+    }
+  }, [orderStatus]);
+
+  useEffect(() => {
+    // Join service request room
+    if (orderData?.id) {
+      socket.emit("join-service-request", orderData.id);
+    }
+
+    // Listen for service request updates
+    const handleServiceRequestUpdate = async (data) => {
+      if (data.requestId === orderData?.id) {
         try {
-          // Poll for service requests to check if accepted
-          const response = await apiClient.get("/user/user-service-requests");
-          const requests = response.data || [];
-          const currentRequest = requests.find(req => req.id === orderData?.id);
-          if (currentRequest && currentRequest.status === "ACCEPTED") {
-            setOrderStatus("ACCEPTED");
+          const response = await apiClient.get(`/user/service-request/${orderData.id}`);
+          const currentRequest = response.data.request;
+          console.log("Fetched request data:", currentRequest);
+          setCurrentRequest(currentRequest);
+
+          if (data.action === "accepted") {
+            setOrderStatus("Available");
             setWorkerData({
-              name: currentRequest.workerName || "Worker",
-              skill: currentRequest.category || "Service",
-              phone: currentRequest.workerPhone || "09123456789",
-              image: currentRequest.workerImage || "",
+              name: currentRequest.serviceProvider ? `${currentRequest.serviceProvider.firstName} ${currentRequest.serviceProvider.lastName}` : "Worker",
+              skill: currentRequest.typeOfWork || "Service",
+              phone: currentRequest.serviceProvider?.phone || "09123456789",
+              image: currentRequest.serviceProvider?.profilePic || "",
+              eta: currentRequest.eta,
             });
             setShowAlert(true);
 
@@ -215,43 +273,93 @@ export default function WaitingForWorker({ route, navigation }) {
               },
               trigger: null,
             });
-          } else {
-            // Continue polling every 5 seconds
-            setTimeout(pollForAcceptance, 5000);
+          } else if (data.action === "cancelled") {
+            Alert.alert("Request Cancelled", "Your service request has been cancelled.");
+            navigation.navigate("PlaceOrder");
           }
         } catch (error) {
-          console.log("Error polling for acceptance:", error);
-          // Continue polling
-          setTimeout(pollForAcceptance, 5000);
+          console.log("Error fetching updated request:", error);
         }
-      };
-      pollForAcceptance();
-    }
-  }, [orderStatus, orderData]);
+      }
+    };
 
-  const handleCancel = () => {
+    socket.on("service-request-updated", handleServiceRequestUpdate);
+
+    return () => {
+      socket.off("service-request-updated", handleServiceRequestUpdate);
+    };
+  }, [orderData]);
+
+  // Initial load
+  useEffect(() => {
+    const loadInitialRequest = async () => {
+      if (orderData?.id) {
+        try {
+          const response = await apiClient.get(`/user/service-request/${orderData.id}`);
+          const currentRequest = response.data.request;
+          setCurrentRequest(currentRequest);
+
+          if (currentRequest.status === "Working") {
+            setOrderStatus("Available");
+            setWorkerData({
+              name: currentRequest.serviceProvider ? `${currentRequest.serviceProvider.firstName} ${currentRequest.serviceProvider.lastName}` : "Worker",
+              skill: currentRequest.typeOfWork || "Service",
+              phone: currentRequest.serviceProvider?.phone || "09123456789",
+              image: currentRequest.serviceProvider?.profilePic || "",
+              eta: currentRequest.eta,
+            });
+          }
+        } catch (error) {
+          console.log("Error loading initial request:", error);
+        }
+      }
+    };
+    loadInitialRequest();
+  }, [orderData]);
+
+  const handleCancel = async () => {
     Alert.alert("Cancel Order", "Are you sure you want to cancel?", [
       { text: "No", style: "cancel" },
-      { text: "Yes", style: "destructive", onPress: () => navigation.navigate("PlaceOrder") },
+      {
+        text: "Yes",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiClient.delete(`/user/service-request/${orderData?.id}/cancel`);
+            navigation.navigate("PlaceOrder");
+          } catch (error) {
+            console.log("Error cancelling request:", error);
+            Alert.alert("Error", "Failed to cancel request. Please try again.");
+          }
+        }
+      },
     ]);
   };
 
   const customerDetails = [
-    { label: "Name", value: orderData?.name || "N/A" },
-    { label: "Address", value: orderData?.address || "N/A" },
-    { label: "Phone", value: orderData?.phone || "N/A" },
+    { label: "Name", value: currentRequest?.name || "N/A" },
+    { label: "Address", value: currentRequest?.address || "N/A" },
+    { label: "Phone", value: currentRequest?.phone || "N/A" },
   ];
 
   const orderDetails = [
-    { label: "Service Type", value: orderData?.typeOfWork || "N/A" },
-    { label: "Priority", value: orderData?.favWorker ? "Favorite Worker" : "Any Available" },
-    { label: "Budget", value: `₱${orderData?.budget || "N/A"}` },
-    { label: "Note", value: orderData?.note || "None" },
+    { label: "Service Type", value: currentRequest?.typeOfWork || "N/A" },
+    { label: "Priority", value: currentRequest?.targetProvider ? "Favorite Worker" : "Any Available" },
+    { label: "Budget", value: `₱${currentRequest?.budget || "N/A"}` },
+    { label: "Date", value: currentRequest?.createdAt ? new Date(currentRequest.createdAt).toLocaleDateString() : "N/A" },
+    { label: "Note", value: currentRequest?.notes || "None" },
   ];
+
+  const matchedServices = currentRequest?.matchedProviders?.map(provider => ({
+    label: provider.serviceType || "Service",
+    value: `₱${provider.rate || "N/A"}`,
+  })) || [];
 
   return (
     <View style={styles.container}>
       <FloatingAlert visible={showAlert} onClose={() => setShowAlert(false)} />
+      <FloatingAlert visible={showAcceptedAlert} onClose={() => setShowAcceptedAlert(false)} message="Worker has been assigned! Get ready for service." />
+      <FloatingAlert visible={showMatchedAlert} onClose={() => setShowMatchedAlert(false)} message="Service provider is reviewing your request." />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <WorkerSection
@@ -264,7 +372,7 @@ export default function WaitingForWorker({ route, navigation }) {
         <DetailsCard title="Order Details" data={orderDetails} />
 
         {/* Give Review Button */}
-        {orderStatus === "ACCEPTED" && (
+        {orderStatus === "Available" && (
           <View style={{ marginBottom: 20 }}>
             <TouchableOpacity
               style={styles.reviewButton}

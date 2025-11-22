@@ -119,6 +119,32 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Handle joining service request rooms
+  socket.on("join-service-request", async (requestId) => {
+    try {
+      const ServiceRequest = (await import("./models/serviceRequest.js")).default;
+      // Verify user has access to this service request
+      const request = await ServiceRequest.findOne({
+        _id: requestId,
+        $or: [
+          { requester: socket.userId },
+          { serviceProvider: socket.userId },
+          { targetProvider: socket.userId }
+        ]
+      });
+
+      if (request || socket.user.role === "admin") {
+        socket.join(`service-request-${requestId}`);
+        console.log(`User ${socket.userId} joined service request room for ${requestId}`);
+      } else {
+        socket.emit("error", "Access denied to this service request");
+      }
+    } catch (error) {
+      console.error("Error joining service request:", error);
+      socket.emit("error", "Failed to join service request");
+    }
+  });
+
   // Handle sending messages
   socket.on("send-message", async (data) => {
     try {

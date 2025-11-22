@@ -144,7 +144,7 @@ export default function PlaceOrder() {
       };
 
       const response = await apiClient.post("/user/post-service-request", orderPayload);
-      navigation.navigate("WaitingForWorker", { orderData: { ...orderPayload, id: response.data.requestId } });
+      navigation.navigate("WaitingForWorker", { orderData: { ...orderPayload, id: response.data.request._id } });
 
       // Reset fields
       setName(user ? `${user.firstName} ${user.lastName}` : "");
