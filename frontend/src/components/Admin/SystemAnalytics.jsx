@@ -53,7 +53,6 @@ const SystemAnalytics = () => {
 
     // Calculated insights
     activeUsers: 0,
-    verifiedProviders: 0,
     totalBookings: 0,
     popularServices: []
   });
@@ -211,7 +210,6 @@ const SystemAnalytics = () => {
 
         // Calculated fields
         activeUsers: Math.floor(totalsRes.data.totalUsers * 0.7), // Assume 70% active
-        verifiedProviders: Math.floor(totalsRes.data.serviceProviders * 0.85), // Assume 85% verified
         totalBookings,
         popularServices
       });
@@ -316,10 +314,9 @@ The following sections provide detailed analysis and visualizations of these met
       const overviewData = [
         ['Metric', 'Value', 'Description'],
         ['Total Users', analyticsData.totals.totalUsers?.toLocaleString() || '0', 'Registered platform users'],
-        ['Service Providers', analyticsData.totals.serviceProviders?.toLocaleString() || '0', 'Verified service providers'],
+        ['Service Providers', analyticsData.totals.serviceProviders?.toLocaleString() || '0', 'Active service providers'],
         ['Total Population', analyticsData.totals.totalPopulation?.toLocaleString() || '0', 'Total population in coverage area'],
         ['Active Users', analyticsData.activeUsers.toLocaleString(), 'Estimated active users (70%)'],
-        ['Verified Providers', analyticsData.verifiedProviders.toLocaleString(), 'Estimated verified providers (85%)'],
         ['Total Bookings', analyticsData.totalBookings.toLocaleString(), 'Completed service bookings']
       ];
 
@@ -728,7 +725,7 @@ The following sections provide detailed analysis and visualizations of these met
             </div>
             <h3 className="metric-title">Service Providers</h3>
             <p className="metric-value">{analyticsData.totals.serviceProviders?.toLocaleString() || 0}</p>
-            <div className="metric-description">Verified service providers</div>
+            <div className="metric-description">Active service providers</div>
           </div>
 
           <div className="metric-card">

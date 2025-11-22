@@ -1,13 +1,36 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import apiClient from '../../api';
 
 export default function ForgotPassword({ navigation }) {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleReset = () => {
-    // TODO: Add API call or Firebase reset password logic here
-    alert('Password reset link sent to ' + email);
-    navigation.goBack(); // Go back to login after success
+  const handleReset = async () => {
+    if (!email.trim()) {
+      Alert.alert("Error", "Please enter an email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post("/user/send-verification-otp", {
+        email: email.trim(),
+        purpose: "password_reset"
+      });
+
+      if (response.data.success) {
+        Alert.alert("Success", "Password reset link sent to " + email, [
+          { text: "OK", onPress: () => navigation.navigate("VerifyPhoneForPassword", { email: email.trim() }) }
+        ]);
+      } else {
+        Alert.alert("Error", response.data.message || "Failed to send reset link.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to send reset link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,8 +46,10 @@ export default function ForgotPassword({ navigation }) {
         keyboardType="email-address"
       />
 
-      <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-        <Text style={styles.resetText}>SEND RESET EMAIL</Text>
+      <TouchableOpacity style={[styles.resetButton, loading && styles.disabledButton]} onPress={handleReset} disabled={loading}>
+        <Text style={styles.resetText}>
+          {loading ? "Sending..." : "SEND RESET EMAIL"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -63,6 +88,9 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     marginBottom: 15,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   resetText: {
     color: '#fff',

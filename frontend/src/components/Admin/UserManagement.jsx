@@ -437,13 +437,13 @@ const UserManagement = () => {
                           user.banned ? 'banned' :
                           user.role === 'Service Provider' ? 'approved' :
                           user.role === 'Service Provider Applicant' ? 'pending' :
-                          user.verified ? 'approved' : 'pending'
+                          'pending'
                         }`}>
                           {user.banned ? 'Banned' :
-                           user.role === 'Community Member' ? 'Residents' :
-                           user.role === 'Service Provider' ? 'Verified' :
-                           user.role === 'Service Provider Applicant' ? 'Unverified' :
-                           user.verified ? 'Verified' : 'Unverified'}
+                           user.role === 'Community Member' ? 'Resident' :
+                           user.role === 'Service Provider' ? 'Provider' :
+                           user.role === 'Service Provider Applicant' ? 'Applicant' :
+                           'Pending'}
                         </span>
                       </td>
                       <td>{new Date(user.createdAt).toLocaleDateString()}</td>
@@ -1041,8 +1041,8 @@ const UserManagement = () => {
                     <p className="user-email">{selectedUser.email}</p>
                     <p className="user-id">ID: {selectedUser._id.slice(-6)}</p>
                     <div className="user-status-badges">
-                      <span className={`status-badge ${selectedUser.banned ? 'banned' : selectedUser.verified ? 'approved' : 'pending'}`}>
-                        {selectedUser.banned ? 'Banned' : selectedUser.verified ? 'Verified' : 'Unverified'}
+                      <span className={`status-badge ${selectedUser.banned ? 'banned' : selectedUser.role === 'Service Provider' ? 'approved' : 'pending'}`}>
+                        {selectedUser.banned ? 'Banned' : selectedUser.role === 'Service Provider' ? 'Verified Provider' : 'Unverified'}
                       </span>
                       <span className={`status-badge ${selectedUser.isOnline ? 'approved' : 'pending'}`}>
                         {selectedUser.isOnline ? 'Online' : 'Offline'}
@@ -1290,30 +1290,6 @@ const UserManagement = () => {
                 </div>
 
                 <div className="action-buttons-grid">
-                  {!selectedUser.verified && (
-                    <button
-                      className="action-btn verify-account-btn"
-                      onClick={() => {
-                        verifyUser(selectedUser._id);
-                        setShowUserModal(false);
-                      }}
-                      disabled={actionLoading === 'verify'}
-                      title="Verify this user's account"
-                    >
-                      {actionLoading === 'verify' ? (
-                        <>
-                          <i className="fas fa-spinner fa-spin"></i>
-                          <span>Verifying...</span>
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-check-circle"></i>
-                          <span>Verify Account</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-
                   {selectedUser.role === 'Service Provider' && (
                     <button
                       className="action-btn edit-services-btn"

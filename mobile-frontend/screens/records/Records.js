@@ -4,14 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useMainContext } from "../../contexts/MainContext";
 import apiClient from "../../api";
-import { socket } from "../../utils/socket";
 import MobileMyRequests from "../MobileMyRequests";
 import MobileAvailableRequests from "../MobileAvailableRequests";
 import MobileWorkRecords from "../MobileWorkRecords";
 
 const RecordsScreen = () => {
   const navigation = useNavigation();
-  const { user, isUserVerified } = useMainContext();
+  const { user } = useMainContext();
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
@@ -221,6 +220,9 @@ const RecordsScreen = () => {
           isOwnOrder: true
         };
         navigation.navigate('OrderDetails', { order });
+      } else if (isMyRequest && request.status !== 'Completed' && request.status !== 'Working' && request.status !== 'Cancelled') {
+        // Navigate to WaitingForWorker for user's own pending requests
+        navigation.navigate('WaitingForWorker', { orderData: request });
       } else {
         // Open modal for other requests
         setSelectedRequest(request);

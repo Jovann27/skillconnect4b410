@@ -18,7 +18,6 @@ const sendToken = (user, statusCode, res, message) => {
     phone: user.phone,
     address: user.address,
     role: user.role || "User",
-    isVerified: user.verified || false,
     profilePic: user.profilePic || "",
     skills: user.skills || [],
     type: "user",

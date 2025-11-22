@@ -48,7 +48,7 @@ export const createVerificationAppointment = async (req, res) => {
 export const getAllVerificationAppointments = async (req, res) => {
   try {
     const appointments = await VerificationAppointment.find()
-      .populate("provider", "firstName lastName email verified")
+      .populate("provider", "firstName lastName email")
       .populate("scheduledBy", "name email")
       .sort({ appointmentDate: 1 });
 
@@ -89,13 +89,9 @@ export const updateVerificationAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // If completed and passed, mark provider as verified
+    // If completed and passed, provider verification is handled elsewhere
     if (status === "Complete" && result === "Passed") {
-      const provider = await User.findById(appointment.provider);
-      if (provider) {
-        provider.verified = true;
-        await provider.save();
-      }
+      // Provider verification logic removed - verified field no longer exists
     }
 
     res.json({ success: true, message: "Appointment updated", appointment });

@@ -9,61 +9,84 @@ import {
   ScrollView,
   Animated,
   Linking,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 import apiClient from "../api";
-import { socket } from "../utils/socket";
 
-// --- Status Header Component ---
-const StatusHeader = ({ status }) => {
-  const isAccepted = status === "ACCEPTED";
-  const config = {
-    icon: isAccepted ? "checkmark-circle" : "time-outline",
-    bgColor: isAccepted ? "#E8FDEB" : "#FFF8E1",
-    color: isAccepted ? "#4CAF50" : "#FBC02D",
-    title: isAccepted ? "Order Accepted!" : "Finding a Worker...",
-    subtitle: isAccepted
-      ? "Your worker is on the way. Get ready!"
-      : "Please wait while we find a nearby available worker.",
-  };
+const { width } = Dimensions.get("window");
 
-  return (
-    <View style={[styles.headerCard, { backgroundColor: config.bgColor }]}>
-      <View style={[styles.headerIconBox, { backgroundColor: config.color + "20" }]}>
-        <Ionicons name={config.icon} size={34} color={config.color} />
-      </View>
-      <View style={{ marginLeft: 12 }}>
-        <Text style={styles.statusTitle}>{config.title}</Text>
-        <Text style={styles.statusSub}>{config.subtitle}</Text>
-      </View>
-    </View>
-  );
-};
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
-// --- Animated Loader ---
 const AnimatedWaiting = () => {
-  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      })
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.4,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
     ).start();
   }, []);
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
+
   return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <Ionicons name="refresh-circle" size={70} color="#C20884" />
+    <Animated.View style={{ transform: [{ scale: pulse }] }}>
+      <View style={styles.pulseCircle}>
+        <Ionicons name="location-outline" size={50} color="#C20884" />
+      </View>
     </Animated.View>
   );
 };
 
-// --- Worker Info ---
+const FloatingAlert = ({ visible, onClose }) => {
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+
+      const timer = setTimeout(() => {
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 500,
+          useNativeDriver: true,
+        }).start(() => onClose());
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.alertContainer, { transform: [{ translateY: slideAnim }] }]}>
+      <Ionicons name="checkmark-circle" size={28} color="#4CAF50" />
+      <Text style={styles.alertText}>Order Accepted! Your worker is on the way.</Text>
+    </Animated.View>
+  );
+};
+
 const WorkerSection = ({ status, worker, onChat, onCall }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -81,8 +104,8 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
     return (
       <View style={styles.waitingContainer}>
         <AnimatedWaiting />
-        <Text style={styles.waitingMain}>Searching for an available worker...</Text>
-        <Text style={styles.waitingSub}>This may take a few moments.</Text>
+        <Text style={styles.waitingMain}>Searching for nearby workers...</Text>
+        <Text style={styles.waitingSub}>Sit tight while we find the best worker for you.</Text>
       </View>
     );
   }
@@ -90,23 +113,24 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
   return (
     <Animated.View style={[styles.workerCard, { opacity: fadeAnim }]}>
       <View style={styles.workerTopRow}>
-        <Image source={{ uri: worker.image }} style={styles.workerImage} />
+        <Image
+          source={worker?.image ? { uri: worker.image } : require("../assets/default-profile.png")}
+          style={styles.workerImage}
+        />
         <View style={styles.workerDetails}>
-          <Text style={styles.workerName}>{worker.name}</Text>
-          <Text style={styles.workerSkill}>{worker.skill}</Text>
-          <Text style={styles.workerPhone}>{worker.phone}</Text>
+          <Text style={styles.workerName}>{worker?.name || "Juan Dela Cruz"}</Text>
+          <Text style={styles.workerSkill}>{worker?.skill || "Plumber"}</Text>
+          <Text style={styles.workerPhone}>{worker?.phone || "09123456789"}</Text>
         </View>
-
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={[styles.iconButton, { backgroundColor: "#E8F5E9" }]} onPress={onCall}>
-            <Ionicons name="call-outline" size={24} color="#2E7D32" />
+            <Ionicons name="call-outline" size={20} color="#2E7D32" />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.iconButton, { backgroundColor: "#FCE4EC" }]} onPress={onChat}>
-            <Ionicons name="chatbox-ellipses-outline" size={24} color="#C2185B" />
+            <Ionicons name="chatbox-ellipses-outline" size={20} color="#C2185B" />
           </TouchableOpacity>
         </View>
       </View>
-
       <View style={styles.workerFooter}>
         <Ionicons name="navigate-outline" size={18} color="#666" />
         <Text style={styles.workerFooterText}>Worker is heading to your location...</Text>
@@ -115,206 +139,184 @@ const WorkerSection = ({ status, worker, onChat, onCall }) => {
   );
 };
 
-// --- Details Card ---
 const DetailsCard = ({ title, data }) => (
   <View style={styles.infoCard}>
     <Text style={styles.sectionTitle}>{title}</Text>
     {data.map((item, index) => (
-      <Text key={index} style={styles.infoText}>
-        <Text style={{ fontWeight: "600" }}>{item.label}: </Text>
-        {item.value}
-      </Text>
+      <View key={index} style={styles.detailRow}>
+        <Text style={styles.infoText}>
+          <Text style={{ fontWeight: "600" }}>{item.label}: </Text>
+          {item.value}
+        </Text>
+      </View>
     ))}
   </View>
 );
 
+const registerForPushNotificationsAsync = async () => {
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== "granted") {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== "granted") {
+    alert("Failed to get push token for notifications!");
+    return;
+  }
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF231F7C",
+      sound: "default",
+    });
+  }
+};
+
 export default function WaitingForWorker({ route, navigation }) {
   const { orderData } = route.params || {};
-  const [serviceRequest, setServiceRequest] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Determine status display based on service request status
-  const getDisplayStatus = (status) => {
-    switch (status) {
-      case "Available":
-        return "PENDING";
-      case "Working":
-        return "ACCEPTED";
-      case "Complete":
-        return "COMPLETED";
-      case "Cancelled":
-        return "CANCELLED";
-      default:
-        return "PENDING";
-    }
-  };
-
-  const fetchServiceRequest = async () => {
-    try {
-      if (!orderData?._id) {
-        setError("No order ID provided");
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await apiClient.get(`/user/service-request/${orderData._id}`);
-      if (data.success) {
-        setServiceRequest(data.request);
-      } else {
-        setError("Failed to fetch order details");
-      }
-    } catch (err) {
-      console.error("Error fetching service request:", err);
-      setError(err.message || "Failed to load order details");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [orderStatus, setOrderStatus] = useState("PENDING");
+  const [workerData, setWorkerData] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
-    fetchServiceRequest();
+    registerForPushNotificationsAsync();
+  }, []);
 
-    // Listen for real-time updates
-    socket.on("service-request-updated", (data) => {
-      console.log("Service request updated:", data);
-      if (data.requestId === orderData?._id) {
-        fetchServiceRequest(); // Refetch the data
-      }
-    });
+  useEffect(() => {
+    if (orderStatus === "PENDING") {
+      const pollForAcceptance = async () => {
+        try {
+          // Poll for service requests to check if accepted
+          const response = await apiClient.get("/user/user-service-requests");
+          const requests = response.data || [];
+          const currentRequest = requests.find(req => req.id === orderData?.id);
+          if (currentRequest && currentRequest.status === "ACCEPTED") {
+            setOrderStatus("ACCEPTED");
+            setWorkerData({
+              name: currentRequest.workerName || "Worker",
+              skill: currentRequest.category || "Service",
+              phone: currentRequest.workerPhone || "09123456789",
+              image: currentRequest.workerImage || "",
+            });
+            setShowAlert(true);
 
-    return () => {
-      socket.off("service-request-updated");
-    };
-  }, [orderData?._id]);
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: "Order Accepted!",
+                body: "Your worker is on the way!",
+                sound: "default",
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: null,
+            });
+          } else {
+            // Continue polling every 5 seconds
+            setTimeout(pollForAcceptance, 5000);
+          }
+        } catch (error) {
+          console.log("Error polling for acceptance:", error);
+          // Continue polling
+          setTimeout(pollForAcceptance, 5000);
+        }
+      };
+      pollForAcceptance();
+    }
+  }, [orderStatus, orderData]);
 
-  const handleCancel = async () => {
-    if (!serviceRequest?._id) return;
-
+  const handleCancel = () => {
     Alert.alert("Cancel Order", "Are you sure you want to cancel?", [
       { text: "No", style: "cancel" },
-      {
-        text: "Yes",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await apiClient.delete(`/user/service-request/${serviceRequest._id}/cancel`);
-            navigation.navigate("PlaceOrder");
-          } catch (err) {
-            console.error("Error cancelling request:", err);
-            Alert.alert("Error", "Failed to cancel the order. Please try again.");
-          }
-        }
-      },
+      { text: "Yes", style: "destructive", onPress: () => navigation.navigate("PlaceOrder") },
     ]);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <AnimatedWaiting />
-          <Text style={styles.loadingText}>Loading order details...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={50} color="#E53935" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchServiceRequest}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const displayStatus = getDisplayStatus(serviceRequest?.status);
-  const workerData = serviceRequest?.serviceProvider ? {
-    name: `${serviceRequest.serviceProvider.firstName} ${serviceRequest.serviceProvider.lastName}`,
-    skill: serviceRequest.typeOfWork,
-    phone: serviceRequest.serviceProvider.phone || "Not available",
-    image: serviceRequest.serviceProvider.profilePic || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
-  } : null;
-
   const customerDetails = [
-    { label: "Name", value: serviceRequest?.name || "N/A" },
-    { label: "Address", value: serviceRequest?.address || "N/A" },
-    { label: "Phone", value: serviceRequest?.phone || "N/A" },
+    { label: "Name", value: orderData?.name || "N/A" },
+    { label: "Address", value: orderData?.address || "N/A" },
+    { label: "Phone", value: orderData?.phone || "N/A" },
   ];
 
   const orderDetails = [
-    { label: "Service Type", value: serviceRequest?.typeOfWork || "N/A" },
-    { label: "Priority", value: serviceRequest?.targetProvider ? "Favorite Worker" : "Any Available" },
-    { label: "Budget", value: `₱${serviceRequest?.budget || "N/A"}` },
-    { label: "Note", value: serviceRequest?.notes || "None" },
+    { label: "Service Type", value: orderData?.typeOfWork || "N/A" },
+    { label: "Priority", value: orderData?.favWorker ? "Favorite Worker" : "Any Available" },
+    { label: "Budget", value: `₱${orderData?.budget || "N/A"}` },
+    { label: "Note", value: orderData?.note || "None" },
   ];
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        <StatusHeader status={displayStatus} />
+      <FloatingAlert visible={showAlert} onClose={() => setShowAlert(false)} />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <WorkerSection
-          status={displayStatus}
+          status={orderStatus}
           worker={workerData}
-          onChat={() => navigation.navigate("WorkerChat", { worker: workerData, orderId: serviceRequest._id })}
+          onChat={() => navigation.navigate("Chat", { role: "client", other: workerData })}
           onCall={() => Linking.openURL(`tel:${workerData?.phone}`)}
         />
         <DetailsCard title="Customer Details" data={customerDetails} />
         <DetailsCard title="Order Details" data={orderDetails} />
 
-        {serviceRequest?.status === "Available" && (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Ionicons name="close-circle-outline" size={18} color="#D32F2F" />
-            <Text style={styles.cancelText}>Cancel Order</Text>
-          </TouchableOpacity>
+        {/* Give Review Button */}
+        {orderStatus === "ACCEPTED" && (
+          <View style={{ marginBottom: 20 }}>
+            <TouchableOpacity
+              style={styles.reviewButton}
+              onPress={() => navigation.navigate("GiveReview", { order: orderData })}
+            >
+              <Text style={styles.reviewText}>Give Review</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
+
+
+      {/* Footer Cancel Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+          <Text style={styles.cancelText}>Cancel Order</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-// --- Styles ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  headerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  headerIconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  container: { flex: 1, backgroundColor: "#FAFAFA", paddingHorizontal: 20, paddingTop: 20 },
+  pulseCircle: {
+    backgroundColor: "#FCE4EC",
+    borderRadius: 50,
+    padding: 20,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#C20884",
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  statusTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#222",
+  alertContainer: {
+    position: "absolute",
+    top: 20,
+    left: width * 0.05,
+    right: width * 0.05,
+    backgroundColor: "#E8FDEB",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 100,
   },
-  statusSub: {
-    color: "#555",
-    fontSize: 13,
-    marginTop: 2,
-  },
+  alertText: { marginLeft: 10, color: "#2E7D32", fontWeight: "600", fontSize: 14 },
   waitingContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -324,17 +326,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     elevation: 2,
   },
-  waitingMain: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 15,
-    color: "#333",
-  },
-  waitingSub: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: 4,
-  },
+  waitingMain: { fontSize: 16, fontWeight: "700", marginTop: 15, color: "#333" },
+  waitingSub: { fontSize: 13, color: "#777", marginTop: 4 },
   workerCard: {
     backgroundColor: "#fff",
     borderRadius: 15,
@@ -345,106 +338,41 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 20,
   },
-  workerTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  workerImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 12,
-  },
+  workerTopRow: { flexDirection: "row", alignItems: "center" },
+  workerImage: { width: 70, height: 70, borderRadius: 35, marginRight: 12, backgroundColor: "#EEE" },
   workerDetails: { flex: 1 },
   workerName: { fontSize: 18, fontWeight: "700", color: "#111" },
   workerSkill: { fontSize: 14, color: "#555", marginTop: 3 },
   workerPhone: { fontSize: 13, color: "#777", marginTop: 2 },
   buttonContainer: { flexDirection: "row", alignItems: "center" },
-  iconButton: {
-    borderRadius: 10,
-    padding: 8,
-    marginLeft: 8,
+  iconButton: { borderRadius: 12, padding: 10, marginLeft: 8 },
+  workerFooter: { flexDirection: "row", alignItems: "center", marginTop: 10, borderTopWidth: 1, borderTopColor: "#EEE", paddingTop: 10 },
+  workerFooterText: { marginLeft: 8, color: "#555", fontSize: 13 },
+  infoCard: { backgroundColor: "#fff", borderRadius: 15, padding: 18, paddingVertical: 20, marginBottom: 15, elevation: 2 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 10, color: "#333" },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  infoText: { fontSize: 14, color: "#444", flexShrink: 1 },
+  footer: {
+    position: "absolute",
+    bottom: 50,
+    left: 20,
+    right: 20,
   },
-  workerFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#EEE",
-    paddingTop: 10,
-  },
-  workerFooterText: {
-    marginLeft: 8,
-    color: "#555",
-    fontSize: 13,
-  },
-  infoCard: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    padding: 18,
-    marginBottom: 15,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 10,
-    color: "#333",
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#444",
-    marginBottom: 6,
-  },
-  cancelButton: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FEECEC",
-    borderWidth: 1,
-    borderColor: "#D32F2F",
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginTop: 10,
-  },
-  cancelText: {
-    color: "#D32F2F",
-    fontWeight: "700",
-    fontSize: 15,
-    marginLeft: 6,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#666",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#E53935",
-    textAlign: "center",
-  },
-  retryButton: {
-    marginTop: 20,
-    backgroundColor: "#ce4da3ff",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  reviewButton: {
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  backgroundColor: "#db5191ff",
+  borderRadius: 12,
+  paddingVertical: 16,
+  elevation: 2,
+},
+reviewText: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 15,
+  marginLeft: 8,
+},
+  cancelButton: { flexDirection: "row", justifyContent: "center", alignItems: "center", backgroundColor: "#db5191ff", borderRadius: 12, paddingVertical: 18 },
+  cancelText: { color: "#ffffffff", fontWeight: "700", fontSize: 15, marginLeft: 6 },
 });

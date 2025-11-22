@@ -82,23 +82,23 @@ export const adminGetAllServiceRequests = async (req, res) => {
   }
 };
 
-// Verify user
-export const verifyUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+// Verify user - DEPRECATED: verified field removed from schema
+// export const verifyUser = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.params.id);
+//     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    if (user.verified) return res.status(400).json({ success: false, message: "User is already verified" });
+//     if (user.verified) return res.status(400).json({ success: false, message: "User is already verified" });
 
-    user.verified = true;
-    await user.save();
+//     user.verified = true;
+//     await user.save();
 
-    res.json({ success: true, message: "User verified successfully", user });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
+//     res.json({ success: true, message: "User verified successfully", user });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -111,10 +111,10 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// Get verified service providers
+// Get service providers
 export const getServiceProviders = async (req, res) => {
   try {
-    const workers = await User.find({ role: "Service Provider", verified: true })
+    const workers = await User.find({ role: "Service Provider" })
       .select("firstName lastName skills availability profilePic createdAt");
     res.json({ success: true, count: workers.length, workers });
   } catch (err) {
@@ -132,7 +132,6 @@ export const approveServiceProvider = catchAsyncError(async (req, res, next) => 
   if (user.role !== "Service Provider Applicant") return next(new ErrorHandler("User is not a Service Provider Applicant", 400));
 
   user.role = "Service Provider";
-  user.verified = true;
   user.availability = "Available"; // Set to available by default
   await user.save();
 
@@ -184,7 +183,6 @@ export const banUser = catchAsyncError(async (req, res, next) => {
   if (!user) return next(new ErrorHandler("User not found", 404));
   if (user.role === "Admin") return next(new ErrorHandler("Cannot ban another admin", 403));
 
-  user.verified = false;
   user.availability = "Not Available";
   user.banned = true; // add this field to your schema if it doesn’t exist
   await user.save();
@@ -242,7 +240,6 @@ export const getDashboardMetrics = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalProviders = await User.countDocuments({ role: "Service Provider" });
-    const verifiedProviders = await User.countDocuments({ role: "Service Provider", verified: true });
     const activeBookings = await Booking.countDocuments({ status: { $in: ["Pending", "Confirmed", "InProgress"] } });
     const totalBookings = await Booking.countDocuments();
 
@@ -276,7 +273,6 @@ export const getDashboardMetrics = async (req, res) => {
       metrics: {
         totalUsers,
         totalProviders,
-        verifiedProviders,
         activeBookings,
         totalBookings,
         bookingsOverTime,

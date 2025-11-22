@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,105 +5,71 @@ import {
   Image,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useMainContext } from "../contexts/MainContext";
+import apiClient from "../api";
 
 export default function BlockedWorker({ route, navigation }) {
-  const { api } = useMainContext();
   const worker = route.params?.worker;
-  const [unblocking, setUnblocking] = useState(false);
 
-  if (!worker) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#666' }}>No worker data available</Text>
-      </View>
-    );
-  }
-
-  const handleUnblock = () => {
+  const handleUnblock = async () => {
     Alert.alert(
       "Unblock Worker",
-      `Are you sure you want to unblock ${worker.firstName} ${worker.lastName}?`,
+      `Are you sure you want to unblock ${worker.name}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Unblock",
           style: "destructive",
-          onPress: () => performUnblock(),
+          onPress: async () => {
+            try {
+              await apiClient.delete(`/user/unblock-user/${worker.id}`);
+              Alert.alert("Worker Unblocked", `${worker.name} has been unblocked.`);
+              navigation.goBack();
+            } catch (error) {
+              console.log("Error unblocking user:", error);
+              Alert.alert("Error", "Failed to unblock worker. Please try again.");
+            }
+          },
         },
       ]
     );
-  };
-
-  const performUnblock = async () => {
-    try {
-      setUnblocking(true);
-      const response = await api.unblockUser(worker._id);
-
-      if (response.data.success) {
-        Alert.alert("Success", `${worker.firstName} ${worker.lastName} has been unblocked.`);
-        navigation.goBack();
-      } else {
-        Alert.alert("Error", "Failed to unblock user. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error unblocking user:", error);
-      Alert.alert("Error", "Failed to unblock user. Please try again.");
-    } finally {
-      setUnblocking(false);
-    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.profileSection}>
         <Image
-          source={
-            worker.profilePic
-              ? { uri: worker.profilePic }
-              : require("../assets/default-profile.png")
-          }
+          source={require("../assets/default-profile.png")}
           style={styles.profileImage}
-          accessibilityLabel={`${worker.firstName} ${worker.lastName} profile image`}
+          accessibilityLabel={`${worker.name} profile image`}
         />
-        <Text style={styles.name}>{worker.firstName} {worker.lastName}</Text>
-        <Text style={styles.service}>
-          {worker.skills && worker.skills.length > 0 ? worker.skills.join(', ') : 'No skills listed'}
-        </Text>
+        <Text style={styles.name}>{worker.name}</Text>
+        <Text style={styles.service}>{worker.service}</Text>
 
-        {/* ⭐ Rating placeholder */}
+        {/* ⭐ One star with rating beside it */}
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={18} color="#FFD700" />
-          <Text style={styles.ratingText}>N/A</Text>
+          <Text style={styles.ratingText}>{worker.rating ?? "0.0"}</Text>
         </View>
 
         {/* 🧱 Unblock button */}
         <TouchableOpacity
-          style={[styles.unblockButton, unblocking && { opacity: 0.6 }]}
+          style={styles.unblockButton}
           onPress={handleUnblock}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel={`Unblock ${worker.firstName} ${worker.lastName}`}
-          disabled={unblocking}
+          accessibilityLabel={`Unblock ${worker.name}`}
         >
-          {unblocking ? (
-            <ActivityIndicator size="small" color="#6e6b6bff" style={{ marginRight: 8 }} />
-          ) : (
-            <Ionicons name="ban" size={18} color="#6e6b6bff" style={{ marginRight: 8 }} />
-          )}
-          <Text style={styles.unblockText}>
-            {unblocking ? 'Unblocking...' : 'Unblock Worker'}
-          </Text>
+          <Ionicons name="ban" size={18} color="#6e6b6bff" style={{ marginRight: 8 }} />
+          <Text style={styles.unblockText}>Unblock Worker</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.detailsBox}>
-        <Text style={styles.label}>Block Information:</Text>
+        <Text style={styles.label}>Reason for Block:</Text>
         <Text style={styles.reasonText}>
-          This user has been blocked from your interactions. You can unblock them to allow future interactions.
+          {worker.reason}
         </Text>
       </View>
     </View>
@@ -179,7 +144,7 @@ const styles = StyleSheet.create({
   },
   unblockText: {
     color: "#6e6b6bff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
   },
 });

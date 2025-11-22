@@ -13,9 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMainContext } from "../../contexts/MainContext";
 import apiClient from "../../api";
 
-export default function VerifyPhoneForPassword({ navigation }) {
+export default function VerifyPhoneForPassword({ route, navigation }) {
   const { user } = useMainContext();
-  const [email, setEmail] = useState(user?.email || "");
+  const { email: paramEmail } = route.params || {};
+  const [email, setEmail] = useState(paramEmail || user?.email || "");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [resendTimer, setResendTimer] = useState(60);

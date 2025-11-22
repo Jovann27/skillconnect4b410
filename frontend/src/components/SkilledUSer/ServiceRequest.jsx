@@ -194,7 +194,7 @@ const ServiceRequestForm = () => {
         name: formData.name,
         address: formData.address,
         phone: formData.phone,
-        typeOfWork: formData.typeOfWork === "other" ? formData.otherType : formData.typeOfWork,
+        typeOfWork: formData.typeOfWork,
         time: formData.time,
         budget: formData.budget,
         notes: formData.notes,
@@ -209,7 +209,7 @@ const ServiceRequestForm = () => {
         name: formData.name,
         address: formData.address,
         phone: formData.phone,
-        typeOfWork: formData.typeOfWork === "other" ? formData.otherType : formData.typeOfWork,
+        typeOfWork: formData.typeOfWork,
         time: formData.time,
         budget: formData.budget,
         notes: formData.notes,
@@ -228,7 +228,6 @@ const ServiceRequestForm = () => {
         time: "",
         budget: "",
         notes: "",
-        otherType: "",
       });
       setMarkerPosition({ lat: 14.5995, lng: 120.9842 });
       // Update map marker
@@ -270,27 +269,19 @@ const ServiceRequestForm = () => {
             required
           >
             <option value="">-- Select Type of Work --</option>
-            <option value="plumbing">Plumbing</option>
-            <option value="electrical">Electrical</option>
-            <option value="cleaning">Cleaning</option>
-            <option value="delivery">Delivery</option>
-            <option value="other">Other</option>
+            <option value="Plumbing">Plumbing</option>
+            <option value="Electrical">Electrical</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Carpentry">Carpentry</option>
+            <option value="Painting">Painting</option>
+            <option value="Appliance Repair">Appliance Repair</option>
+            <option value="Home Renovation">Home Renovation</option>
+            <option value="Pest Control">Pest Control</option>
+            <option value="Gardening & Landscaping">Gardening & Landscaping</option>
+            <option value="Air Conditioning & Ventilation">Air Conditioning & Ventilation</option>
+            <option value="Laundry / Labandera">Laundry / Labandera</option>
           </select>
         </div>
-
-        {formData.typeOfWork === "other" && (
-          <div className="requestForm-group fade-in">
-            <label>Specify Other Type</label>
-            <input
-              type="text"
-              name="otherType"
-              value={formData.otherType || ""}
-              onChange={handleChange}
-              placeholder="Enter your custom type..."
-              required
-            />
-          </div>
-        )}
 
         <div className="requestForm-group">
           <label>Notes to worker</label>

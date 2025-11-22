@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,187 +6,179 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
   Keyboard,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
+  Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
-import { useNavigation } from "@react-navigation/native";
-import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMainContext } from "../contexts/MainContext";
 import apiClient from "../api";
 
 export default function PlaceOrder() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { user } = useMainContext();
 
-  const [name, setName] = useState(`${user?.firstName || ''} ${user?.lastName || ''}`.trim());
+  const previousOrder = route?.params?.previousOrder || null;
+
+  const [name, setName] = useState(user ? `${user.firstName} ${user.lastName}` : "");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState(user?.phone || "");
   const [typeOfWork, setTypeOfWork] = useState("");
-  const [time, setTime] = useState("");
-  const [favWorker, setFavWorker] = useState(false);
+  const [time, setTime] = useState(new Date());
   const [budget, setBudget] = useState("");
-  const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [location, setLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [geocodingLoading, setGeocodingLoading] = useState(false);
-  // Request location permissions on component mount
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
+  const [notes, setNotes] = useState("");
 
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          "Location Permission",
-          "Location permission is needed to provide accurate service requests. You can still enter your address manually."
+  const [loading, setLoading] = useState(false);
+
+  // Map states
+  const [markerPosition, setMarkerPosition] = useState({ lat: 14.5995, lng: 120.9842 }); // Default to Manila
+  const mapRef = useRef(null);
+  const [locationError, setLocationError] = useState(null);
+  const [currentAddress, setCurrentAddress] = useState("");
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  useEffect(() => {
+    if (previousOrder) {
+      if (previousOrder.worker) setName(previousOrder.worker);
+      if (previousOrder.address) setAddress(previousOrder.address);
+      if (previousOrder.type) setTypeOfWork(previousOrder.type);
+      if (previousOrder.price) setBudget(previousOrder.price.toString());
+      if (previousOrder.date)
+        setNotes(
+          `Reorder request based on previous service on ${previousOrder.date}`
         );
-      }
-    } catch (error) {
-      console.error('Error requesting location permission:', error);
     }
-  };
+  }, [previousOrder]);
 
   const getCurrentLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permission denied", "Location access is needed to get your current location.");
-        setLocationLoading(false);
-        return;
-      }
+    if (!Location) {
+      setLocationError("Location services are not available.");
+      return;
+    }
 
-      const locationResult = await Location.getCurrentPositionAsync({
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      setLocationError("Permission to access location was denied.");
+      return;
+    }
+
+    setLocationError(null);
+    try {
+      let location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
+      const { latitude, longitude } = location.coords;
+      setMarkerPosition({ lat: latitude, lng: longitude });
 
-      const { latitude, longitude } = locationResult.coords;
-      setLocation({ lat: latitude, lng: longitude });
+      if (mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      }
 
-      // Reverse geocode to get address
-      await reverseGeocode(latitude, longitude);
-
-    } catch (error) {
-      console.error('Error getting location:', error);
-      Alert.alert("Error", "Failed to get your location. Please try again or enter address manually.");
-    } finally {
-      setLocationLoading(false);
-    }
-  };
-
-  const reverseGeocode = async (latitude, longitude) => {
-    setGeocodingLoading(true);
-    try {
-      const geocodedLocation = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
-
-      if (geocodedLocation.length > 0) {
-        const addressData = geocodedLocation[0];
-        const formattedAddress = [
-          addressData.street,
-          addressData.district,
-          addressData.city,
-          addressData.region,
-          addressData.postalCode,
-          addressData.country,
-        ].filter(Boolean).join(', ');
-
-        setAddress(formattedAddress);
+      // Reverse geocode
+      try {
+        const response = await apiClient.get(`/user/reverse-geocode?lat=${latitude}&lon=${longitude}`);
+        if (response.data.success && response.data.address) {
+          setCurrentAddress(response.data.address);
+          setAddress(response.data.address);
+        } else {
+          throw new Error("No address found");
+        }
+      } catch (error) {
+        console.error("Reverse geocoding failed:", error);
+        const fallbackAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        setCurrentAddress(fallbackAddress);
+        setAddress(fallbackAddress);
       }
     } catch (error) {
-      console.error('Error reverse geocoding:', error);
-      Alert.alert("Error", "Failed to get address from location. Please enter your address manually.");
-    } finally {
-      setGeocodingLoading(false);
+      setLocationError("Unable to retrieve your location.");
     }
   };
 
-  const handleOrder = async () => {
-    // Validation
-    if (!name.trim()) {
-      Alert.alert("Error", "Please enter your full name");
-      return;
-    }
-    if (!address.trim()) {
-      Alert.alert("Error", "Please enter your address");
-      return;
-    }
-    if (!phone.trim()) {
-      Alert.alert("Error", "Please enter your phone number");
-      return;
-    }
-    if (!typeOfWork) {
-      Alert.alert("Error", "Please select type of work");
-      return;
-    }
-    if (!time) {
-      Alert.alert("Error", "Please select preferred time");
+  const validateInputs = () => {
+    if (!name.trim()) return "Full name is required.";
+    if (!address.trim()) return "Address is required.";
+    if (!phone.trim()) return "Phone number is required.";
+    if (!/^(09\d{9})$/.test(phone))
+      return "Enter a valid 11-digit phone number (starts with 09).";
+    if (!typeOfWork) return "Please select a type of work.";
+    if (!notes.trim()) return "Notes are required.";
+    if (!budget.trim()) return "Budget is required.";
+    if (isNaN(budget) || Number(budget) <= 0)
+      return "Budget must be a valid positive number.";
+
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    const error = validateInputs();
+    if (error) {
+      Alert.alert("Validation Error", error);
       return;
     }
 
     setLoading(true);
-
     try {
-      const requestData = {
-        name: name.trim(),
-        address: address.trim(),
-        phone: phone.trim(),
+      const orderPayload = {
+        name,
+        address,
+        phone,
         typeOfWork,
-        time,
-        budget: budget ? parseFloat(budget) : 0,
-        notes: note.trim(),
-        location: location, // Send location coordinates if available
+        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        budget: Number(budget),
+        notes,
+        location: markerPosition,
       };
 
-      const response = await apiClient.post('/post-service-request', requestData);
+      const response = await apiClient.post("/user/post-service-request", orderPayload);
+      navigation.navigate("WaitingForWorker", { orderData: { ...orderPayload, id: response.data.requestId } });
 
-      if (response.data.success) {
-        Alert.alert("Success", "Service request posted successfully!", [
-          {
-            text: "OK",
-            onPress: () => navigation.navigate("WaitingForWorker", { orderData: requestData })
-          }
-        ]);
-      } else {
-        Alert.alert("Error", response.data.message || "Failed to post service request");
-      }
+      // Reset fields
+      setName(user ? `${user.firstName} ${user.lastName}` : "");
+      setAddress("");
+      setPhone(user?.phone || "");
+      setTypeOfWork("");
+      setTime(new Date());
+      setBudget("");
+      setNotes("");
+      setMarkerPosition({ lat: 14.5995, lng: 120.9842 });
     } catch (error) {
-      console.error('Error posting service request:', error);
-      const errorMessage = error.response?.data?.message || "Network error. Please check your connection and try again.";
-      Alert.alert("Error", errorMessage);
+      console.log("Error placing order:", error);
+      Alert.alert("Error", "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#fff" }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.container}>
           <ScrollView
             contentContainerStyle={styles.scrollContainer}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {/* Name */}
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>Full Name *</Text>
             <TextInput
               style={styles.input}
               value={name}
@@ -195,56 +187,16 @@ export default function PlaceOrder() {
             />
 
             {/* Address */}
-            <Text style={styles.label}>Address</Text>
-            <View style={styles.addressContainer}>
-              <TextInput
-                style={[styles.input, styles.addressInput]}
-                value={address}
-                placeholder="Enter your address"
-                onChangeText={setAddress}
-              />
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={getCurrentLocation}
-                disabled={locationLoading || geocodingLoading}
-              >
-                {locationLoading || geocodingLoading ? (
-                  <ActivityIndicator size="small" color="#ce4da3ff" />
-                ) : (
-                  <Ionicons name="location" size={20} color="#ce4da3ff" />
-                )}
-              </TouchableOpacity>
-            </View>
-            {location && (
-              <>
-                <Text style={styles.locationText}>
-                  Location detected: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                </Text>
-                <MapView
-                  style={styles.map}
-                  region={{
-                    latitude: location.lat,
-                    longitude: location.lng,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  showsUserLocation={true}
-                  showsMyLocationButton={true}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: location.lat,
-                      longitude: location.lng,
-                    }}
-                    title="Your Location"
-                    description="Current location for service request"
-                  />
-                </MapView>
-              </>
-            )}
+            <Text style={styles.label}>Address *</Text>
+            <TextInput
+              style={styles.input}
+              value={address}
+              placeholder="Enter your address"
+              onChangeText={setAddress}
+            />
 
             {/* Phone */}
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>Phone Number *</Text>
             <TextInput
               style={styles.input}
               keyboardType="phone-pad"
@@ -255,7 +207,7 @@ export default function PlaceOrder() {
             />
 
             {/* Type of Work */}
-            <Text style={styles.label}>Type of Work</Text>
+            <Text style={styles.label}>Type of Work *</Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={typeOfWork}
@@ -265,36 +217,111 @@ export default function PlaceOrder() {
                 <Picker.Item label="Select work type" value="" />
                 <Picker.Item label="Plumbing" value="Plumbing" />
                 <Picker.Item label="Electrical" value="Electrical" />
+                <Picker.Item label="Cleaning" value="Cleaning" />
                 <Picker.Item label="Carpentry" value="Carpentry" />
                 <Picker.Item label="Painting" value="Painting" />
-                <Picker.Item label="Cleaning" value="Cleaning" />
+                <Picker.Item label="Appliance Repair" value="Appliance Repair" />
+                <Picker.Item label="Home Renovation" value="Home Renovation" />
+                <Picker.Item label="Pest Control" value="Pest Control" />
+                <Picker.Item label="Gardening & Landscaping" value="Gardening & Landscaping" />
+                <Picker.Item label="Air Conditioning & Ventilation" value="Air Conditioning & Ventilation" />
+                <Picker.Item label="Laundry / Labandera" value="Laundry / Labandera" />
               </Picker>
             </View>
 
-            {/* Time */}
-            <Text style={styles.label}>Preferred Time</Text>
-            <View style={styles.pickerContainer}>
-              <Picker selectedValue={time} onValueChange={setTime} style={styles.picker}>
-                <Picker.Item label="Select time" value="" />
-                <Picker.Item label="Morning" value="Morning" />
-                <Picker.Item label="Afternoon" value="Afternoon" />
-                <Picker.Item label="Evening" value="Evening" />
-              </Picker>
-            </View>
-
-            {/* Favorite Worker */}
-            <View style={styles.switchRow}>
-              <Text style={styles.label}>Assign to favourite worker first</Text>
-              <Switch
-                value={favWorker}
-                onValueChange={setFavWorker}
-                thumbColor={favWorker ? "#ce4da3ff" : "#ccc"}
-                trackColor={{ false: "#ddd", true: "#f5b0e1" }}
+            {/* Preferred Time */}
+            <Text style={styles.label}>Preferred Time *</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={{ fontSize: 14, color: time ? "#333" : "#999" }}>
+                {time ? time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Select time"}
+              </Text>
+            </TouchableOpacity>
+            {showTimePicker && (
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowTimePicker(false);
+                  if (selectedDate) {
+                    setTime(selectedDate);
+                  }
+                }}
               />
+            )}
+
+            {/* Map Section */}
+            <Text style={styles.label}>Select Location on Map *</Text>
+            <View style={styles.mapContainer}>
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={{
+                  latitude: markerPosition.lat,
+                  longitude: markerPosition.lng,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onPress={(e) => {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  setMarkerPosition({ lat: latitude, lng: longitude });
+
+                  // Reverse geocode
+                  apiClient.get(`/user/reverse-geocode?lat=${latitude}&lon=${longitude}`)
+                    .then(response => {
+                      if (response.data.success && response.data.address) {
+                        setCurrentAddress(response.data.address);
+                        setAddress(response.data.address);
+                      } else {
+                        throw new Error("No address found");
+                      }
+                    })
+                    .catch(error => {
+                      console.error("Reverse geocoding failed:", error);
+                      const fallbackAddress = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                      setCurrentAddress(fallbackAddress);
+                      setAddress(fallbackAddress);
+                    });
+                }}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: markerPosition.lat,
+                    longitude: markerPosition.lng,
+                  }}
+                />
+              </MapView>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={getCurrentLocation}
+              >
+                <Text style={styles.locationButtonText}>📍 Use My Location</Text>
+              </TouchableOpacity>
+              {locationError && (
+                <Text style={styles.errorText}>{locationError}</Text>
+              )}
+              {currentAddress && (
+                <View style={styles.addressDisplay}>
+                  <Text style={styles.addressLabel}>Detected Address:</Text>
+                  <Text style={styles.addressText}>{currentAddress}</Text>
+                  <TouchableOpacity
+                    style={styles.useAddressButton}
+                    onPress={() => {
+                      setAddress(currentAddress);
+                      setCurrentAddress("");
+                    }}
+                  >
+                    <Text style={styles.useAddressText}>Use This Address</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {/* Budget */}
-            <Text style={styles.label}>Budget (₱)</Text>
+            <Text style={styles.label}>Budget (₱) *</Text>
             <TextInput
               style={styles.input}
               keyboardType="numeric"
@@ -303,30 +330,31 @@ export default function PlaceOrder() {
               onChangeText={setBudget}
             />
 
-            {/* Note */}
-            <Text style={styles.label}>Note to Worker</Text>
+            {/* Notes */}
+            <Text style={styles.label}>Notes to Worker *</Text>
             <TextInput
               style={[styles.input, styles.noteInput]}
               multiline
-              placeholder="Additional instructions (optional)"
-              value={note}
-              onChangeText={setNote}
+              placeholder="Notes to worker..."
+              value={notes}
+              onChangeText={setNotes}
             />
 
-            {/* Submit */}
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: "#ce4da3ff" }]}
-              onPress={handleOrder}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? "Placing Order..." : "Place Order"}
-              </Text>
-            </TouchableOpacity>
           </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: "#ce4da3ff", marginBottom: 0 }]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>Place Order</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -335,10 +363,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     paddingHorizontal: 26,
-    paddingTop: 40,
   },
   scrollContainer: {
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   label: {
     fontSize: 14,
@@ -370,64 +397,85 @@ const styles = StyleSheet.create({
   picker: {
     height: 55,
   },
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: "#f9f9f9",
-  },
   button: {
-    paddingVertical: 15,
+    paddingVertical: 20,
+    paddingHorizontal: 25,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 4,
+    marginBottom: 20,
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
-  addressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+  footer: {
+    padding: 16,
+    marginBottom: 20,
+  },
+  mapContainer: {
+    height: 300,
     marginBottom: 16,
-  },
-  addressInput: {
-    flex: 1,
-    marginBottom: 0,
-    marginRight: 10,
-  },
-  locationButton: {
-    padding: 12,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    justifyContent: "center",
-    alignItems: "center",
-    width: 45,
-    height: 45,
-  },
-  locationText: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 8,
-    fontStyle: "italic",
+    borderRadius: 10,
+    overflow: "hidden",
   },
   map: {
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 16,
+    flex: 1,
+  },
+  locationButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#fff",
+    padding: 10,
+    borderRadius: 5,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  locationButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  errorText: {
+    color: "red",
+    fontSize: 12,
+    marginTop: 5,
+  },
+  addressDisplay: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "#fff",
+    padding: 10,
+    borderRadius: 5,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  addressLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#333",
+  },
+  addressText: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 2,
+  },
+  useAddressButton: {
+    marginTop: 5,
+    alignSelf: "flex-end",
+  },
+  useAddressText: {
+    fontSize: 12,
+    color: "#ce4da3ff",
+    fontWeight: "600",
   },
 });

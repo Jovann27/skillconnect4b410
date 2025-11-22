@@ -51,7 +51,7 @@ export default function Home({ navigation }) {
         <View style={styles.featuresContainer}>
           <View style={styles.feature}>
             <Ionicons name="shield-checkmark-outline" size={16} color="#444" />
-            <Text style={styles.featureText}>Verified Professionals</Text>
+            <Text style={styles.featureText}>Trusted Professionals</Text>
           </View>
           <View style={styles.feature}>
             <Ionicons name="people-outline" size={16} color="#444" />
@@ -123,7 +123,7 @@ export default function Home({ navigation }) {
             />
             <Text style={styles.stepTitle}>Apply or Recruit</Text>
             <Text style={styles.stepDesc}>
-              Apply for jobs that match your skills or recruit verified workers that suit your needs.
+              Apply for jobs that match your skills or recruit Service Providers that suit your needs.
             </Text>
           </View>
         </View>

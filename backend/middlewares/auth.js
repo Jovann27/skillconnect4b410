@@ -64,10 +64,11 @@ export const isAdminAuthenticated = async (req, res, next) => {
 };
 
 
-export const isUserVerified = (req, res, next) => {
-  if (req.user.verified) {
-    next();
-  } else {
-    return res.status(403).json({ success: false, message: "User not verified" });
-  }
-};
+// DEPRECATED: verified field removed from schema
+// export const isUserVerified = (req, res, next) => {
+//   if (req.user.verified) {
+//     next();
+//   } else {
+//     return res.status(403).json({ success: false, message: "User not verified" });
+//   }
+// };

@@ -17,13 +17,16 @@ const userSchema = new mongoose.Schema({
   employed: { type: String, required: true },
 
   role: { type: String, required: true, enum: ["Community Member", "Service Provider Applicant", "Service Provider"], default: "Community Member" },
-  verified: { type: Boolean, default: false },
 
   skills: {
     type: [String],
     validate: {
       validator: function(skills) {
+        if (this.role === "Community Member") {
+          return true;
+        } else {
         return skills.length >= 1 && skills.length <= 3;
+        }
       },
       message: 'You must select between 1 and 3 skills'
     },

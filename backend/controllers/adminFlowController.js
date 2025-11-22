@@ -72,11 +72,10 @@ export const updateVerificationAppointment = catchAsyncError(async (req, res, ne
 
   await appt.save();
 
-  // Optionally mark provider verified when appointment completed and markVerified flag provided
+  // Optionally mark provider as verified when appointment completed and markVerified flag provided
   if (status === "Complete" && markVerified) {
     const provider = await User.findById(appt.provider);
     if (provider) {
-      provider.verified = true;
       provider.isApplyingProvider = false;
       await provider.save();
       await sendNotification(provider._id, "Verification Completed", "Your account is now verified as a Service Provider.");
@@ -89,9 +88,8 @@ export const updateVerificationAppointment = catchAsyncError(async (req, res, ne
 // Get providers pending verification
 export const getPendingProviderApplications = catchAsyncError(async (req, res, next) => {
   if (!req.admin) return next(new ErrorHandler("Admin only", 401));
-  const pending = await User.find({ 
-    role: "Service Provider", 
-    verified: false, 
+  const pending = await User.find({
+    role: "Service Provider Applicant",
     isApplyingProvider: true })
     .select("-password");
   res.json({ success: true, count: pending.length, pending });

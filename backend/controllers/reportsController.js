@@ -64,15 +64,11 @@ export const skillsReport = async (req, res) => {
 
 export const skilledPerTrade = async (req, res) => {
   try {
-    const users = await User.find().select('role skills verified');
+    const users = await User.find().select('role skills');
     const byRole = {};
     const bySkill = {};
 
     users.forEach(u => {
-      if (u.role === 'Service Provider' && !u.verified) {
-        return;
-      }
-      
       byRole[u.role] = (byRole[u.role] || 0) + 1;
       (u.skills || []).forEach(skill => {
         bySkill[skill] = (bySkill[skill] || 0) + 1;

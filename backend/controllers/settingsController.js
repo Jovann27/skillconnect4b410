@@ -5,7 +5,7 @@ import Settings from "../models/settings.js";
 
 export const getSkilledUsers = async (req, res) => {
   try {
-    const workers = await User.find({ role: "Service Provider", verified: true })
+    const workers = await User.find({ role: "Service Provider" })
       .select("firstName lastName skills availability profilePic createdAt");
     res.json({ success: true, count: workers.length, workers });
   } catch (err) {

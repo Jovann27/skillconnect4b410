@@ -5,83 +5,53 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useMainContext } from '../contexts/MainContext';
+import apiClient from '../api';
 
 const WorkerRow = ({ item, onPress }) => (
   <TouchableOpacity onPress={() => onPress(item)} style={styles.tableRow}>
-    <Text style={[styles.tableCell, styles.nameCell]}>
-      {item.firstName} {item.lastName}
-    </Text>
-    <Text style={[styles.tableCell, styles.serviceCell]}>
-      {item.skills && item.skills.length > 0 ? item.skills.join(', ') : 'No skills listed'}
-    </Text>
+    <Text style={[styles.tableCell, styles.nameCell]}>{item.name}</Text>
+    <Text style={[styles.tableCell, styles.serviceCell]}>{item.service}</Text>
     <View style={[styles.tableCell, styles.ratingCell]}>
       <Ionicons name="star" size={16} color="#FFD700" />
-      <Text style={styles.ratingText}>N/A</Text>
+      <Text style={styles.ratingText}>{item.rating || '0.0'}</Text>
     </View>
   </TouchableOpacity>
 );
 
 const Blocked = ({ navigation }) => {
-  const { api } = useMainContext();
-  const [blockedUsers, setBlockedUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [blockedData, setBlockedData] = useState([]);
 
   useEffect(() => {
+    const fetchBlockedUsers = async () => {
+      try {
+        const response = await apiClient.get('/user/blocked-users');
+        setBlockedData(response.data.blockedUsers || []);
+      } catch (error) {
+        console.log('Error fetching blocked users:', error);
+        setBlockedData([]);
+      }
+    };
     fetchBlockedUsers();
   }, []);
-
-  const fetchBlockedUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await api.getBlockedUsers();
-      if (response.data.success) {
-        setBlockedUsers(response.data.blockedUsers);
-      }
-    } catch (error) {
-      console.error('Error fetching blocked users:', error);
-      Alert.alert('Error', 'Failed to load blocked users');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePress = (worker) => {
     navigation.navigate("BlockedWorker", { worker });
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#4caf50" />
-        <Text style={{ marginTop: 10, color: '#666' }}>Loading blocked users...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <View style={styles.tableHeader}>
         <Text style={[styles.headerCell, styles.nameCell]}>Name</Text>
-        <Text style={[styles.headerCell, styles.serviceCell]}>Skills</Text>
-        <Text style={[styles.headerCell, styles.ratingCell]}>Status</Text>
+        <Text style={[styles.headerCell, styles.serviceCell]}>Service Type</Text>
+        <Text style={[styles.headerCell, styles.ratingCell]}>Ratings</Text>
       </View>
 
       <FlatList
-        data={blockedUsers}
-        keyExtractor={item => item._id}
+        data={blockedData}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => <WorkerRow item={item} onPress={handlePress} />}
-        ListEmptyComponent={
-          <View style={{ padding: 20, alignItems: 'center' }}>
-            <Text style={{ color: '#666', textAlign: 'center' }}>
-              No blocked users found
-            </Text>
-          </View>
-        }
       />
     </View>
   );

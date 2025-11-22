@@ -10,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useMainContext } from "../../MainContext";
+import { useMainContext } from "../../contexts/MainContext";
 import apiClient from "../../api";
 
 export default function ResetPassword({ route, navigation }) {

@@ -120,12 +120,7 @@ export default function MyServiceScreen({ navigation }) {
     } catch (error) {
       console.error('Error fetching service requests:', error);
       if (error.response && error.response.status === 403) {
-        const errorMessage = error.response.data?.message || '';
-        if (errorMessage.includes('not verified')) {
-          setRequestsError('Your account is not verified. Please contact support to get verified as a Service Provider.');
-        } else {
-          setRequestsError('Access denied. You must be a Service Provider.');
-        }
+        setRequestsError('Access denied. You must be a Service Provider.');
       } else {
         setRequestsError('No matching requests found.');
       }

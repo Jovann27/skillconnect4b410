@@ -9,7 +9,7 @@ import WorkRecords from './WorkRecords';
 import "./UserRecords.css";
 
 const UserWorkRecord = () => {
-  const { user, openChat, isUserVerified } = useMainContext();
+  const { user, openChat } = useMainContext();
   const { showNotification } = usePopup();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -106,8 +106,8 @@ const UserWorkRecord = () => {
   const handleAcceptRequest = async (request, e) => {
     e.stopPropagation();
 
-    if (!isUserVerified) {
-      alert("You must be verified to accept service requests. Please complete your verification process.");
+    if (user.role !== "Service Provider") {
+      alert("You must be a Service Provider to accept service requests.");
       return;
     }
 
