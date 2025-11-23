@@ -1,129 +1,222 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../api';
-import toast from 'react-hot-toast';
-import './WaitingForWorker.css';
+import { useState, useEffect, useRef } from "react";
+import api from "../../api";
+import socket from "../../utils/socket";
+import "./WaitingForWorker.css";
 
-const WaitingForWorker = ({ isOpen = true, onClose }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const requestData = location.state?.requestData;
-
-  const [status, setStatus] = useState('Available');
-  const [loading, setLoading] = useState(false);
+const WaitingForWorker = ({ isOpen, onClose, requestData }) => {
+  const [status, setStatus] = useState("Searching"); 
+  const [workerData, setWorkerData] = useState(null);
+  const [currentRequest, setCurrentRequest] = useState(null);
 
   useEffect(() => {
-    if (!requestData) {
-      toast.error('No request data found.');
-      navigate('/user/service-request');
-      return;
+    if (!isOpen || !requestData) return;
+
+    setCurrentRequest(requestData);
+
+    // If already working, populate worker
+    if (requestData.status === "Working") {
+      setStatus("Found");
+      setWorkerData({
+        name:
+          requestData.serviceProvider
+            ? `${requestData.serviceProvider.firstName} ${requestData.serviceProvider.lastName}`
+            : "Worker",
+        skill: requestData.typeOfWork || "Service",
+        phone: requestData.serviceProvider?.phone || "09123456789",
+        image: requestData.serviceProvider?.profilePic || "/default-profile.png",
+        eta: requestData.eta || null,
+      });
     }
 
-    const checkStatus = async () => {
+    // Join room
+    socket.emit("join-service-request", requestData._id);
+
+    // Handle socket updates
+    const handleUpdate = async (data) => {
+      if (data.requestId !== requestData._id) return;
+
       try {
-        const response = await api.get('/user/user-service-requests', { withCredentials: true });
-        const requests = response.data.requests;
-        const currentRequest = requests.find(req => req._id === requestData._id);
-        if (currentRequest) {
-          setStatus(currentRequest.status);
-          if (currentRequest.status === 'Working') {
-            toast.success('A service provider has accepted your request!');
-            navigate('/user/dashboard'); // Or to a booking page
-          } else if (currentRequest.status === 'Cancelled') {
-            toast.error('Your request has been cancelled.');
-            navigate('/user/service-request');
-          }
+        const response = await api.get(`/user/service-request/${requestData._id}`);
+        const updatedRequest = response.data.request;
+        setCurrentRequest(updatedRequest);
+
+        // Worker Accepted
+        if (data.action === "accepted") {
+          setStatus("Found");
+          setWorkerData({
+            name:
+              updatedRequest.serviceProvider
+                ? `${updatedRequest.serviceProvider.firstName} ${updatedRequest.serviceProvider.lastName}`
+                : "Worker",
+            skill: updatedRequest.typeOfWork || "Service",
+            phone: updatedRequest.serviceProvider?.phone || "09123456789",
+            image:
+              updatedRequest.serviceProvider?.profilePic ||
+              "/default-profile.png",
+            eta: updatedRequest.eta || null,
+          });
         }
-      } catch (error) {
-        console.error('Error checking status:', error);
+      } catch (err) {
+        console.error("Failed to update request:", err);
       }
     };
 
-    const interval = setInterval(checkStatus, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, [requestData, navigate]);
+    socket.on("service-request-updated", handleUpdate);
 
-  const handleCancel = async () => {
-    if (!requestData) return;
-    setLoading(true);
-    try {
-      await api.put(`/user/service-request/${requestData._id}/cancel`, {}, { withCredentials: true });
-      toast.success('Request cancelled successfully.');
-      navigate('/user/service-request');
-    } catch (error) {
-      toast.error('Failed to cancel request.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
 
-  // Prevent rendering if not open or no requestData
-  if (!isOpen || !requestData) {
-    return null;
-  }
+    return () => {
+      socket.off("service-request-updated", handleUpdate);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, requestData, onClose]);
 
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget && onClose) {
-      onClose();
-    }
-  };
+  if (!isOpen) return null;
+
+  const customerDetails = [
+    { label: "Name", value: currentRequest?.name || "N/A" },
+    { label: "Address", value: currentRequest?.address || "N/A" },
+    { label: "Phone", value: currentRequest?.phone || "N/A" },
+  ];
+
+  const orderDetails = [
+    { label: "Service Type", value: currentRequest?.typeOfWork || "N/A" },
+    {
+      label: "Priority",
+      value: currentRequest?.targetProvider ? "Favorite Worker" : "Any Available",
+    },
+    { label: "Budget", value: `₱${currentRequest?.budget || "N/A"}` },
+    {
+      label: "Date",
+      value: currentRequest?.createdAt
+        ? new Date(currentRequest.createdAt).toLocaleDateString()
+        : "N/A",
+    },
+    { label: "Note", value: currentRequest?.notes || "None" },
+  ];
 
   return (
-    <div className="popup-overlay" onClick={handleBackdropClick}>
-      <div className="popup-content waiting-popup">
-        <div className="popup-header">
-          <h1>Waiting for Worker</h1>
-          {onClose && (
-            <button className="popup-close" onClick={onClose}>
-              ×
-            </button>
-          )}
-        </div>
+    <div className="popup-overlay" onClick={onClose}>
+      <div
+        className="popup-content accepted-order-popup"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className="close-button" onClick={onClose} style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+          ×
+        </button>
+
         <div className="popup-body">
-          <div className="waiting-status">
-            <span className="status-icon clock-icon">⏰</span>
-            <h2>Finding the Best Worker...</h2>
-            <p>Please wait while we locate a nearby worker.</p>
+          {/* Header */}
+          <div className="accepted-order-header">
+            <h1 className="header-title">Service Request</h1>
+            <p className="header-subtitle">
+              Request #{currentRequest?._id?.slice(-8) || "N/A"}
+            </p>
+
+            <span
+              className={`status-badge ${
+                status === "Found" ? "available" : "searching"
+              }`}
+            >
+              {status === "Found" ? "Worker Found" : "Searching"}
+            </span>
           </div>
 
-          <div className="request-summary">
-            <h3>Request Summary</h3>
-            <div className="detail-grid">
-              <div className="detail-item">
-                <span className="detail-label">Service Type</span>
-                <span className="detail-value">{requestData.typeOfWork}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Budget</span>
-                <span className="detail-value">P{requestData.budget}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Customer</span>
-                <span className="detail-value">{requestData.name}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Location</span>
-                <span className="detail-value">{requestData.address}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Phone</span>
-                <span className="detail-value">{requestData.phone}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Notes</span>
-                <span className="detail-value">{requestData.notes || 'None'}</span>
+          {/* Worker Found */}
+          {status === "Found" && workerData && (
+            <div className="content-card worker-card">
+              <h2 className="section-header">Assigned Worker</h2>
+              <div className="worker-content">
+                <img
+                  src={workerData.image}
+                  alt="Worker"
+                  className="worker-avatar"
+                />
+                <div className="worker-info">
+                  <h3>{workerData.name}</h3>
+                  <p className="worker-detail">{workerData.skill}</p>
+                  <p className="worker-detail">{workerData.phone}</p>
+                  {workerData.eta && (
+                    <p className="worker-detail">
+                      ETA:{" "}
+                      {new Date(workerData.eta).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
+          )}
+
+          {/* Searching */}
+          {status !== "Found" && (
+            <div className="content-card">
+              <div className="waiting-section">
+                <div className="pulse-circle">
+                  <span className="location-icon">📍</span>
+                </div>
+                <h3>Searching for nearby workers...</h3>
+                <p>Sit tight while we locate the best available worker.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Customer Details */}
+          <div className="content-card">
+            <h2 className="section-header">Customer Details</h2>
+            <div className="info-grid">
+              {customerDetails.map((item, index) => (
+                <div key={index} className="info-item">
+                  <div className="info-label">{item.label}</div>
+                  <div className="info-value">{item.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="popup-footer">
-          <button
-            className="popup-button cancel-button"
-            onClick={handleCancel}
-            disabled={loading}
-          >
-            {loading ? 'Cancelling...' : 'Cancel Order'}
-          </button>
+
+          {/* Order Details */}
+          <div className="content-card">
+            <h2 className="section-header">Order Details</h2>
+            <div className="order-details-grid">
+              {orderDetails.map((item, index) => (
+                <div key={index} className="detail-row">
+                  <span className="detail-label">{item.label}</span>
+                  <span className="detail-value">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="popup-actions">
+            {status === "Found" && (
+              <>
+                <button
+                  className="action-button chat-button"
+                  onClick={() => window.open(`tel:${workerData.phone}`)}
+                >
+                  📞 Call Worker
+                </button>
+
+                <button className="action-button chat-button">
+                  💬 Chat with Worker
+                </button>
+              </>
+            )}
+
+            <button className="action-button cancel-button">
+              ❌ Cancel Request
+            </button>
+
+            <button className="modal-button" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

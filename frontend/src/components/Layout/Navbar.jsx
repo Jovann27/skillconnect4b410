@@ -296,7 +296,7 @@ const Navbar = () => {
                         
                       </li>
                     )}
-                    <li><Link to="/user/request-service"><FaCartPlus />Request Service</Link></li>
+                    <li><Link to="/user/service-request"><FaCartPlus />Request Service</Link></li>
                     <li><Link to="/user/records"><FaFileAlt/>My Records</Link></li>
                     <li><Link to="/user/general-settings"><IoSettingsOutline />General Settings </Link></li>
 

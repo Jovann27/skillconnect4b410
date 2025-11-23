@@ -1,4 +1,4 @@
-c/* WaitingForWorker - Popup Modal Design */
+/* Accepted Order Web - Popup Modal Design */
 
 .popup-overlay {
   position: fixed;
@@ -38,43 +38,6 @@ c/* WaitingForWorker - Popup Modal Design */
 }
 
 /* Header Section */
-.popup-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 12px 12px 0 0;
-}
-
-.popup-header h2 {
-  margin: 0;
-  font-size: 1.4rem;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: 0.15s ease-in-out;
-}
-
-.close-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.popup-body {
-  padding: 12px;
-  margin: 0 8px;
-}
-
-/* Header Section */
 .accepted-order-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 8px;
@@ -110,13 +73,18 @@ c/* WaitingForWorker - Popup Modal Design */
   margin-top: 15px;
 }
 
-.status-badge.available {
-  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+.status-badge.working {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
 }
 
-.status-badge.pending {
-  background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+.status-badge.accepted {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.status-badge.completed {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   color: white;
 }
 
@@ -124,11 +92,13 @@ c/* WaitingForWorker - Popup Modal Design */
 .content-card {
   background: white;
   border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: all 0.2s ease;
 }
+
 
 /* Worker Section */
 .worker-card {
@@ -189,10 +159,10 @@ c/* WaitingForWorker - Popup Modal Design */
 
 /* Section Headers */
 .section-header {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: #2d3748;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   display: flex;
   align-items: center;
 }
@@ -200,10 +170,10 @@ c/* WaitingForWorker - Popup Modal Design */
 .section-header::before {
   content: '';
   width: 3px;
-  height: 16px;
+  height: 18px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 2px;
-  margin-right: 6px;
+  margin-right: 8px;
 }
 
 /* Info Grid */
@@ -216,10 +186,13 @@ c/* WaitingForWorker - Popup Modal Design */
 .info-item {
   display: flex;
   flex-direction: column;
-  padding: 10px;
+  padding: 12px;
   background: #f8fafc;
   border-radius: 8px;
+  transition: all 0.2s ease;
 }
+
+
 
 .info-label {
   font-size: 11px;
@@ -247,7 +220,7 @@ c/* WaitingForWorker - Popup Modal Design */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
+  padding: 16px 0;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -274,97 +247,95 @@ c/* WaitingForWorker - Popup Modal Design */
   font-size: 18px;
 }
 
-/* Waiting Section */
-.waiting-section {
-  text-align: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #fff5f5 0%, #fce4ec 100%);
+/* Notes Section */
+.notes-section {
+  background: #fef5e7;
+  border: 1px solid #fbd38d;
   border-radius: 12px;
-  border: 1px solid rgba(233, 30, 99, 0.1);
+  padding: 20px;
+  margin-top: 20px;
 }
 
-.pulse-circle {
-  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
-  border-radius: 50%;
-  width: 90px;
-  height: 90px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto 20px;
-  animation: pulse 2s infinite;
-  box-shadow: 0 8px 25px rgba(233, 30, 99, 0.3);
-  position: relative;
-}
-
-.pulse-circle::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  right: -5px;
-  bottom: -5px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
-  opacity: 0.3;
-  animation: pulseRing 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 8px 25px rgba(233, 30, 99, 0.3);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 12px 35px rgba(233, 30, 99, 0.4);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 8px 25px rgba(233, 30, 99, 0.3);
-  }
-}
-
-@keyframes pulseRing {
-  0% {
-    transform: scale(1);
-    opacity: 0.3;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0.3;
-  }
-}
-
-.location-icon {
-  font-size: 36px;
-  color: white;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.waiting-section h3 {
-  margin: 0 0 8px;
-  color: #212121;
-  font-size: 1.3rem;
+.notes-label {
   font-weight: 600;
+  color: #744210;
+  margin-bottom: 8px;
+  display: block;
 }
 
-.waiting-section p {
-  color: #666;
-  margin: 0;
-  font-size: 1rem;
-  line-height: 1.5;
+.notes-content {
+  color: #744210;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* Work Confirmation Section */
+.work-confirmation-section {
+  background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
+  border: 2px solid #38b2ac;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 15px rgba(56, 178, 172, 0.2);
+}
+
+.work-confirmation-section h4 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #234e52;
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.work-confirmation-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.work-confirmation-form input[type="file"] {
+  padding: 10px;
+  border: 2px solid #38b2ac;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.confirm-work-btn {
+  background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(56, 178, 172, 0.3);
+  min-width: 200px;
+}
+
+.confirm-work-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #319795 0%, #2c7a7b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(56, 178, 172, 0.4);
+}
+
+.confirm-work-btn:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Action Buttons */
 .popup-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 16px;
+  margin-top: 40px;
   flex-wrap: wrap;
 }
 
@@ -409,19 +380,70 @@ c/* WaitingForWorker - Popup Modal Design */
 }
 
 .modal-button {
-  background: #e0e0e0;
-  color: #212121;
-  border: 2px solid #bdbdbd;
+  background: #f7fafc;
+  color: #4a5568;
+  border: 2px solid #e2e8f0;
+  flex: 0 0 auto;
+  min-width: auto;
+  padding: 12px 20px;
 }
 
 .modal-button:hover {
-  background: #f5f5f5;
-  transform: translateY(-2px);
+  background: #edf2f7;
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
 }
+
+/* Loading and Error States */
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text,
+.error-text {
+  font-size: 18px;
+  color: #4a5568;
+  margin-bottom: 20px;
+}
+
+.retry-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .accepted-order-popup {
+  .accepted-order-container {
     padding: 15px;
   }
 
@@ -451,7 +473,7 @@ c/* WaitingForWorker - Popup Modal Design */
     grid-template-columns: 1fr;
   }
 
-  .popup-actions {
+  .action-buttons {
     flex-direction: column;
   }
 
@@ -478,28 +500,4 @@ c/* WaitingForWorker - Popup Modal Design */
   .detail-value {
     text-align: left;
   }
-
-  .pulse-circle {
-    width: 80px;
-    height: 80px;
-  }
-
-  .location-icon {
-    font-size: 32px;
-  }
-}
-
-/* Accessibility */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-.close-button:focus,
-.action-button:focus {
-  outline: 2px solid #ffd700;
-  outline-offset: 2px;
 }

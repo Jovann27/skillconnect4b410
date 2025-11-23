@@ -4,6 +4,7 @@ import api from "../../api";
 import { useMainContext } from "../../mainContext";
 import { usePopup } from "../../components/Layout/PopupContext";
 import RequestDetailPopup from "./RequestDetailPopup";
+import AcceptedOrderWeb from "./AcceptedOrderWeb";
 import MyRequests from './MyRequests';
 import AvailableRequests from './AvailableRequests';
 import WorkRecords from './WorkRecords';
@@ -21,6 +22,8 @@ const UserWorkRecord = () => {
   const [activeTab, setActiveTab] = useState("my-requests");
   const [popupOpen, setPopupOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [acceptedOrderPopupOpen, setAcceptedOrderPopupOpen] = useState(false);
+  const [selectedAcceptedOrder, setSelectedAcceptedOrder] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
@@ -96,8 +99,12 @@ const UserWorkRecord = () => {
     } else {
       // Regular request
       const isMyRequest = myRequests.find(r => r._id === request._id);
-      if (isMyRequest && (request.status === 'Completed' || request.status === 'Working')) {
-        // Navigate to OrderDetails for user's own completed/working requests
+      if (isMyRequest && request.status === 'Working') {
+        // Open AcceptedOrderWeb popup for user's own working requests
+        setSelectedAcceptedOrder(request);
+        setAcceptedOrderPopupOpen(true);
+      } else if (isMyRequest && request.status === 'Completed') {
+        // Navigate to OrderDetails for user's own completed requests
         const order = {
           worker: request.acceptedBy ? `${request.acceptedBy.firstName} ${request.acceptedBy.lastName}` : 'Not assigned',
           type: request.typeOfWork,
@@ -136,12 +143,26 @@ const UserWorkRecord = () => {
     handleClosePopup();
   };
 
-  const handleChatRequest = (request, e) => {
+  const handleChatRequest = async (request, e) => {
     e.stopPropagation();
     console.log("Chat button clicked for request:", request._id, "Provider:", request.serviceProvider);
     if (request.serviceProvider) {
-      openChat(request._id);
-      showNotification(`Opening chat with ${request.serviceProvider.firstName || request.serviceProvider.username}`, "success", 2000, "Success");
+      try {
+        // Find the booking associated with this request
+        const response = await api.get("/user/bookings");
+        const bookings = response.data.bookings || [];
+        const booking = bookings.find(b => b.serviceRequest && b.serviceRequest._id === request._id);
+
+        if (booking) {
+          openChat(booking._id);
+          showNotification(`Opening chat with ${request.serviceProvider.firstName || request.serviceProvider.username}`, "success", 2000, "Success");
+        } else {
+          showNotification("No active booking found for this request.", "error", 3000, "Error");
+        }
+      } catch (err) {
+        console.error("Error finding booking for chat:", err);
+        showNotification("Failed to open chat. Please try again.", "error", 4000, "Error");
+      }
     } else {
       showNotification("No service provider assigned for chat.", "info", 3000, "Info");
     }
@@ -159,7 +180,7 @@ const UserWorkRecord = () => {
 
     try {
       console.log("Cancelling request:", request._id);
-      const response = await api.cancel(`/user/service-request/${request._id}/cancel`);
+      const response = await api.delete(`/user/service-request/${request._id}/cancel`);
       console.log("Cancel request response:", response.data);
 
       if (response.data.success) {
@@ -209,7 +230,24 @@ const UserWorkRecord = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const response = await api.put(`/user/service-request/${editRequest._id}/update`, editRequest);
+      const updateData = {
+        name: editRequest.name?.trim(),
+        address: editRequest.address?.trim(),
+        phone: editRequest.phone?.trim(),
+        typeOfWork: editRequest.typeOfWork?.trim(),
+        time: editRequest.time?.trim(),
+        budget: editRequest.budget ? parseFloat(editRequest.budget) : 0,
+        notes: editRequest.notes?.trim() || "",
+        location: editRequest.location || null
+      };
+
+      // Validate required fields
+      if (!updateData.name || !updateData.address || !updateData.phone || !updateData.typeOfWork || !updateData.time) {
+        showNotification("Please fill in all required fields.", "error", 4000, "Validation Error");
+        return;
+      }
+
+      const response = await api.put(`/user/service-request/${editRequest._id}/update`, updateData);
       if (response.data.success) {
         showNotification("Request updated successfully!", "success", 3000, "Success");
         fetchMyRequests();
@@ -217,7 +255,28 @@ const UserWorkRecord = () => {
       }
     } catch (err) {
       console.error(err);
-      showNotification("Failed to update request. Please try again.", "error", 4000, "Error");
+      let errorMessage = "Failed to update request. Please try again.";
+
+      if (err.response?.status === 400) {
+        if (err.response.data?.message?.includes("Cannot edit request that is in progress")) {
+          errorMessage = "This request has been accepted by a service provider and can no longer be edited.";
+          // Refresh the requests to show updated status
+          fetchMyRequests();
+          handleCloseEditModal();
+        } else {
+          errorMessage = err.response.data?.message || errorMessage;
+        }
+      } else if (err.response?.status === 403) {
+        errorMessage = "You don't have permission to edit this request.";
+      } else if (err.response?.status === 404) {
+        errorMessage = "Request not found. It may have been deleted.";
+        fetchMyRequests();
+        handleCloseEditModal();
+      } else {
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
+
+      showNotification(errorMessage, "error", 4000, "Error");
     }
   };
 
@@ -346,6 +405,16 @@ const UserWorkRecord = () => {
         onDelete={handleDeleteRequest}
         onAccept={handleAcceptRequest}
         onDecline={handleDeclineRequest}
+      />
+
+      {/* Accepted Order Popup */}
+      <AcceptedOrderWeb
+        request={selectedAcceptedOrder}
+        isOpen={acceptedOrderPopupOpen}
+        onClose={() => {
+          setAcceptedOrderPopupOpen(false);
+          setSelectedAcceptedOrder(null);
+        }}
       />
 
       {/* Edit Modal */}

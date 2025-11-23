@@ -38,7 +38,7 @@ const initializeSocket = (token) => {
         return null;
     }
 
-    _socket = io("http://192.168.1.11:4000/api/v1", {
+    _socket = io("https://skillconnect4b410-backend.onrender.com/api/v1", {
         withCredentials: true,
         auth: { token }
     });

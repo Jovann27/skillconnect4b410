@@ -44,11 +44,12 @@ import AdminRegister from "./components/Admin/AdminRegister";
 // User pages
 import MyService from "./components/SkilledUSer/MyService";
 import ServiceRequest from "./components/SkilledUSer/ServiceRequest";
-import UserWorkRecords from "./components/SkilledUSer/UserRecords";
+import UserWorkRecord from "./components/SkilledUSer/UserRecords";
 import UserRequest from "./components/SkilledUSer/UsersRequest";
 import ManageProfile from "./components/SkilledUSer/ManageProfile";
 import WaitingForWorker from "./components/SkilledUSer/WaitingForWorker";
 import AcceptedRequest from "./components/SkilledUSer/AcceptedRequest";
+import AcceptedOrderWeb from "./components/SkilledUSer/AcceptedOrderWeb";
 import Settings from "./components/SkilledUSer/Settings";
 
 import ErrorBoundary from "./components/Layout/ErrorBoundary";
@@ -59,8 +60,9 @@ const RoleGuard = ({ allowedRoles, children, fallback = null }) => {
   const { user } = useMainContext();
   const userRole = user?.role;
 
-  if (!allowedRoles.includes(userRole)) {
-    return fallback || <Navigate to="/user/my-service" />;
+  // Allow access if user has one of the allowed roles, or if no specific roles are required
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+    return fallback || <Navigate to="/user/service-request" />;
   }
 
   return children;
@@ -105,7 +107,12 @@ const AppContent = () => {
         if (lastPath && lastPath.startsWith("/user/")) {
           navigate(lastPath, { replace: true });
         } else {
-          navigate("/user/my-service", { replace: true });
+          // Navigate based on user role
+          if (userRole === "Service Provider") {
+            navigate("/user/my-service", { replace: true });
+          } else {
+            navigate("/user/service-request", { replace: true });
+          }
         }
       }
     }
@@ -115,6 +122,7 @@ const AppContent = () => {
     <>
       <Navbar />
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/home" element={<Home />} />
         <Route path="/about" element={<About />} />
 
@@ -134,12 +142,13 @@ const AppContent = () => {
           {/* Routes available to all authenticated users */}
           <Route index element={<MyService />} />
           <Route path="dashboard" element={<MyService />} />
+          <Route path="my-service" element={<MyService />} />
           <Route path="manage-profile" element={<ManageProfile />} />
           <Route path="general-settings" element={<Settings />} />
 
           {/* Routes for Community Members and Service Providers */}
           <Route
-            path="request-service"
+            path="service-request"
             element={
               <RoleGuard allowedRoles={["Community Member", "Service Provider", "Service Provider Applicant"]}>
                 <ServiceRequest />
@@ -150,7 +159,7 @@ const AppContent = () => {
             path="records"
             element={
               <RoleGuard allowedRoles={["Community Member", "Service Provider", "Service Provider Applicant"]}>
-                <UserWorkRecords />
+                <UserWorkRecord />
               </RoleGuard>
             }
           />
@@ -163,15 +172,8 @@ const AppContent = () => {
             }
           />
 
+
           {/* Routes for Service Providers only */}
-          <Route
-            path="my-service"
-            element={
-              <RoleGuard allowedRoles={["Service Provider"]}>
-                <MyService />
-              </RoleGuard>
-            }
-          />
           <Route
             path="users-request"
             element={

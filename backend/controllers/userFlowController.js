@@ -488,8 +488,8 @@ export const updateServiceRequest = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Not authorized to update this request", 403));
   }
 
-  // Only allow updates if status is Available or Waiting
-  if (request.status !== "Available" && request.status !== "Waiting") {
+  // Only allow updates if status is Waiting (before acceptance)
+  if (request.status !== "Waiting") {
     return next(new ErrorHandler("Cannot edit request that is in progress", 400));
   }
 

@@ -4,6 +4,7 @@ import api from '../api';
 import socket from '../utils/socket';
 import './ChatIcon.css';
 import { FaFacebookMessenger, FaLocationArrow  } from 'react-icons/fa';
+import { BsThreeDotsVertical } from 'react-icons/bs';
 
 // Constants
 const API_BASE_URL = "http://192.168.1.11:4000/api/v1";
@@ -42,6 +43,9 @@ const ChatIcon = () => {
   const [helpTopics, setHelpTopics] = useState([]);
   const [selectedHelpTopic, setSelectedHelpTopic] = useState(null);
   const [helpCategories, setHelpCategories] = useState([]);
+  const [workProofImage, setWorkProofImage] = useState(null);
+  const [completingWork, setCompletingWork] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -284,7 +288,7 @@ const ChatIcon = () => {
 
       if (chatToOpen) {
         setIsOpen(true);
-        openChat(chatToOpen);
+        openChat(chatToOpen, openChatAppointmentId);
         setOpenChatAppointmentId(null); // Reset
       } else {
         // If chat not found, reset and show notification
@@ -420,11 +424,13 @@ const ChatIcon = () => {
     }
   };
 
-  const openChat = (chat) => {
-    setSelectedChat(chat);
+  const openChat = (chat, specificAppointmentId = null) => {
+    const appointmentId = specificAppointmentId || chat.appointmentId;
+    const selectedChatData = { ...chat, appointmentId };
+    setSelectedChat(selectedChatData);
     setView('chat');
     setError(null);
-    fetchMessages(chat.appointmentId);
+    fetchMessages(appointmentId);
   };
 
   const backToList = () => {
@@ -490,6 +496,112 @@ const ChatIcon = () => {
     }, 1000);
   };
 
+  const handleCompleteWork = async () => {
+    if (!selectedChat || !workProofImage) return;
+
+    setCompletingWork(true);
+    try {
+      const formData = new FormData();
+      formData.append('proofImage', workProofImage);
+      formData.append('appointmentId', selectedChat.appointmentId);
+
+      await api.put(`/user/booking/${selectedChat.appointmentId}/complete`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Update the chat status locally
+      setSelectedChat(prev => prev ? { ...prev, status: 'Complete' } : null);
+
+      // Update chat list
+      setChatList(prev => prev.map(chat =>
+        chat.appointments.includes(selectedChat.appointmentId)
+          ? { ...chat, status: 'Complete' }
+          : chat
+      ));
+
+      setWorkProofImage(null);
+      alert('Work completed successfully!');
+    } catch (err) {
+      console.error('Error completing work:', err);
+      alert('Failed to complete work. Please try again.');
+    } finally {
+      setCompletingWork(false);
+    }
+  };
+
+  // User menu handlers
+  const handleReportUser = async () => {
+    if (!selectedChat) return;
+    const reason = prompt('Please provide a reason for reporting this user:');
+    if (reason && reason.trim()) {
+      try {
+        const response = await api.post('/user/report-user', {
+          reportedUserId: selectedChat.otherUser._id,
+          reason: reason.trim(),
+          appointmentId: selectedChat.appointmentId
+        });
+
+        if (response.data.success) {
+          alert('User reported successfully. Our team will review your report.');
+        }
+      } catch (err) {
+        console.error('Error reporting user:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to report user. Please try again.';
+        alert(errorMessage);
+      }
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!selectedChat) return;
+    const confirmBlock = window.confirm(`Are you sure you want to block ${selectedChat.otherUser.firstName} ${selectedChat.otherUser.lastName}? You won't be able to send or receive messages from this user.`);
+    if (confirmBlock) {
+      try {
+        const response = await api.post('/user/block-user', {
+          targetUserId: selectedChat.otherUser._id
+        });
+
+        if (response.data.success) {
+          alert(`User ${selectedChat.otherUser.firstName} ${selectedChat.otherUser.lastName} has been blocked.`);
+          // Close the chat and remove from chat list
+          backToList();
+        }
+      } catch (err) {
+        console.error('Error blocking user:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to block user. Please try again.';
+        alert(errorMessage);
+      }
+    }
+  };
+
+  const handleRateUser = async () => {
+    if (!selectedChat) return;
+    const rating = prompt('Rate this user (1-5 stars):', '5');
+    const ratingNum = parseInt(rating);
+    if (ratingNum >= 1 && ratingNum <= 5) {
+      const comment = prompt('Add a comment (optional):');
+      try {
+        const response = await api.post('/review', {
+          bookingId: selectedChat.appointmentId,
+          rating: ratingNum,
+          comments: comment || ''
+        });
+
+        if (response.data.success) {
+          alert(`Thank you for rating ${selectedChat.otherUser.firstName} ${selectedChat.otherUser.lastName} with ${ratingNum} stars!`);
+        }
+      } catch (err) {
+        console.error('Error rating user:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to submit rating. Please try again.';
+        alert(errorMessage);
+      }
+    } else if (rating !== null) {
+      alert('Please enter a rating between 1 and 5.');
+    }
+  };
+
   const totalUnreadCount = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
   return (
@@ -512,9 +624,18 @@ const ChatIcon = () => {
                 <h3>
                   {selectedChat?.otherUser?.firstName} {selectedChat?.otherUser?.lastName}
                 </h3>
-                <span className={`status-indicator ${selectedChat?.status?.toLowerCase()}`}>
-                  {selectedChat?.status}
-                </span>
+                <div className="chat-header-actions">
+                  <button
+                    className="user-menu-btn"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    title="User options"
+                  >
+                    <BsThreeDotsVertical size={20} />
+                  </button>
+                  <span className={`status-indicator ${selectedChat?.status?.toLowerCase()}`}>
+                    {selectedChat?.status}
+                  </span>
+                </div>
               </>
             ) : view === 'help' ? (
               <>
@@ -538,6 +659,41 @@ const ChatIcon = () => {
               </>
             )}
           </div>
+
+          {/* User Menu Dropdown */}
+          {showUserMenu && selectedChat && (
+            <div className="user-menu-dropdown">
+              <button
+                className="user-menu-item"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleReportUser();
+                }}
+              >
+                🚨 Report User
+              </button>
+              <button
+                className="user-menu-item"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleBlockUser();
+                }}
+              >
+                🚫 Block User
+              </button>
+              {user?.role !== 'Service Provider' && (
+                <button
+                  className="user-menu-item"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    handleRateUser();
+                  }}
+                >
+                  ⭐ Rate User
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="chat-body">
             {view === 'list' ? (
@@ -588,6 +744,53 @@ const ChatIcon = () => {
             ) : view === 'chat' ? (
               <div className="chat-messages">
                 {error && <p className="error">{error}</p>}
+
+                {/* Request Details Section */}
+                {selectedChat?.serviceRequest && (
+                  <div className="request-details-section">
+                    <h4>Request Details</h4>
+                    <div className="request-info">
+                      <div className="detail-row">
+                        <span className="label">Service:</span>
+                        <span className="value">{selectedChat.serviceRequest.typeOfWork || selectedChat.serviceRequest.name || 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Budget:</span>
+                        <span className="value">{selectedChat.serviceRequest.budget ? `₱${selectedChat.serviceRequest.budget}` : 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Location:</span>
+                        <span className="value">{selectedChat.serviceRequest.address || 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Notes:</span>
+                        <span className="value">{selectedChat.serviceRequest.notes || 'N/A'}</span>
+                      </div>
+                    </div>
+
+                    {/* Work Confirmation Section - Only show for service providers when status is Working */}
+                    {user?.role === 'Service Provider' && selectedChat?.status === 'Working' && (
+                      <div className="work-confirmation-section">
+                        <h4>Complete Work</h4>
+                        <div className="work-confirmation-form">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setWorkProofImage(e.target.files[0])}
+                            style={{ marginBottom: '10px' }}
+                          />
+                          <button
+                            className="confirm-work-btn"
+                            onClick={handleCompleteWork}
+                            disabled={completingWork || !workProofImage}
+                          >
+                            {completingWork ? 'Completing...' : 'Confirm Work Done'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="messages-container">
                   {messages.map((msg) => (

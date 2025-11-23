@@ -2,6 +2,7 @@ import express from "express";
 import { register, login, logout, getMyProfile, getUserProfile, updateProfile, updateUserPassword, getPasswordLength, sendVerificationOTP, verifyOTP, resetPassword, getNotificationPreferences, updateNotificationPreferences, getBlockedUsers, blockUser, unblockUser, getFavourites, addToFavourites, removeFromFavourites } from "../controllers/userController.js";
 import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadCount } from "../controllers/notificationController.js";
 import { getChatHistory, sendMessage, getChatList, markMessagesAsSeen } from "../controllers/userFlowController.js";
+import { reportUser } from "../controllers/reportsController.js";
 import { isUserAuthenticated } from "../middlewares/auth.js";
 
 const router = express.Router();
@@ -45,5 +46,8 @@ router.put("/chat/:appointmentId/mark-seen", isUserAuthenticated, markMessagesAs
 router.get("/favourites", isUserAuthenticated, getFavourites);
 router.post("/add-to-favourites", isUserAuthenticated, addToFavourites);
 router.delete("/remove-from-favourites/:workerId", isUserAuthenticated, removeFromFavourites);
+
+// User Reports
+router.post("/report-user", isUserAuthenticated, reportUser);
 
 export default router;

@@ -49,9 +49,9 @@ const WorkRecords = ({ searchTerm, filterStatus, filterServiceType, filterBudget
     }
 
     // Only show records where current user is the service provider, not the requester
-    const isServiceProvider = record.acceptedBy?._id === user._id || record.acceptedById === user._id;
+    const isServiceProvider = record.provider?._id === user._id;
     if (!isServiceProvider) {
-      console.log("Skipping record where user is not service provider:", record._id, "AcceptedBy:", record.acceptedBy?._id, "Current user:", user._id);
+      console.log("Skipping record where user is not service provider:", record._id, "Provider:", record.provider?._id, "Current user:", user._id);
       return false;
     }
 

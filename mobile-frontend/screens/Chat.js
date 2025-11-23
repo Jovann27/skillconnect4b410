@@ -54,6 +54,10 @@ export default function Chat({ route, navigation }) {
   const [selectedHelpTopic, setSelectedHelpTopic] = useState(null);
   const [helpCategories, setHelpCategories] = useState([]);
   const [localUser, setLocalUser] = useState(null);
+  const [workProofImage, setWorkProofImage] = useState(null);
+  const [completingWork, setCompletingWork] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showRequestDetails, setShowRequestDetails] = useState(true);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const flatListRef = useRef(null);
@@ -471,6 +475,37 @@ export default function Chat({ route, navigation }) {
     }, 1000);
   };
 
+  const handleCompleteWork = async () => {
+    if (!selectedChat || !workProofImage) return;
+
+    setCompletingWork(true);
+    try {
+      const formData = new FormData();
+      formData.append('proofImage', workProofImage);
+      formData.append('appointmentId', selectedChat.appointmentId);
+
+      await api.completeWork(formData);
+
+      // Update the chat status locally
+      setSelectedChat(prev => prev ? { ...prev, status: 'Complete' } : null);
+
+      // Update chat list
+      setChatList(prev => prev.map(chat =>
+        chat.appointments.includes(selectedChat.appointmentId)
+          ? { ...chat, status: 'Complete' }
+          : chat
+      ));
+
+      setWorkProofImage(null);
+      Alert.alert('Success', 'Work completed successfully!');
+    } catch (err) {
+      console.error('Error completing work:', err);
+      Alert.alert('Error', 'Failed to complete work. Please try again.');
+    } finally {
+      setCompletingWork(false);
+    }
+  };
+
   // Render functions
   const renderChatListItem = ({ item }) => (
     <TouchableOpacity
@@ -627,6 +662,73 @@ export default function Chat({ route, navigation }) {
         ) : view === 'chat' ? (
           <View style={styles.chatView}>
             {error && <Text style={styles.errorText}>{error}</Text>}
+
+            {/* Request Details Section */}
+            {selectedChat?.serviceRequest && (
+              <View style={styles.requestDetailsSection}>
+                <Text style={styles.requestDetailsTitle}>Request Details</Text>
+                <View style={styles.requestInfo}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Service:</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedChat.serviceRequest.typeOfWork || selectedChat.serviceRequest.name || 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Budget:</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedChat.serviceRequest.budget ? `₱${selectedChat.serviceRequest.budget}` : 'N/A'}
+                    </Text>
+                  </View>
+                  {user?.role === 'Service Provider' && (
+                    <>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Location:</Text>
+                        <Text style={styles.detailValue}>
+                          {selectedChat.serviceRequest.address || 'N/A'}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Notes:</Text>
+                        <Text style={styles.detailValue}>
+                          {selectedChat.serviceRequest.notes || 'N/A'}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+
+                {/* Work Confirmation Section - Only show for service providers when status is Working */}
+                {user?.role === 'Service Provider' && selectedChat?.status === 'Working' && (
+                  <View style={styles.workConfirmationSection}>
+                    <Text style={styles.workConfirmationTitle}>Complete Work</Text>
+                    <View style={styles.workConfirmationForm}>
+                      <TouchableOpacity
+                        style={styles.imagePickerButton}
+                        onPress={() => {
+                          // For React Native, you would use ImagePicker or similar
+                          Alert.alert('Image Picker', 'Image picker functionality would be implemented here');
+                        }}
+                      >
+                        <Ionicons name="camera" size={20} color="#666" />
+                        <Text style={styles.imagePickerText}>
+                          {workProofImage ? 'Image Selected' : 'Select Proof Image'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.confirmWorkButton, { opacity: completingWork || !workProofImage ? 0.5 : 1 }]}
+                        onPress={handleCompleteWork}
+                        disabled={completingWork || !workProofImage}
+                      >
+                        <Text style={styles.confirmWorkButtonText}>
+                          {completingWork ? 'Completing...' : 'Confirm Work Done'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
 
             <FlatList
               ref={messagesEndRef}
@@ -1114,6 +1216,92 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 8,
+  },
+
+  // Request Details Section
+  requestDetailsSection: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginHorizontal: 10,
+    marginVertical: 10,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  requestDetailsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 15,
+  },
+  requestInfo: {
+    marginBottom: 15,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: "#333",
+    flex: 2,
+    textAlign: "right",
+  },
+
+  // Work Confirmation Section
+  workConfirmationSection: {
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+    paddingTop: 15,
+  },
+  workConfirmationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+  },
+  workConfirmationForm: {
+    gap: 10,
+  },
+  imagePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8f9fa",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  imagePickerText: {
+    fontSize: 14,
+    color: "#666",
+    marginLeft: 8,
+  },
+  confirmWorkButton: {
+    backgroundColor: "#10b981",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmWorkButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   // Loading and Error

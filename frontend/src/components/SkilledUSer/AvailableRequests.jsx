@@ -11,7 +11,7 @@ const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filter
 
   const fetchCurrentRequests = async () => {
     try {
-      const { data } = await api.get("/user/service-requests", { withCredentials: true });
+      const { data } = await api.get("/user/matching-requests", { withCredentials: true });
       setRequests(data.requests || []);
     } catch (err) {
       console.error("Error fetching requests:", err);
