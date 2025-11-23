@@ -49,9 +49,9 @@ const WorkRecords = ({ searchTerm, filterStatus, filterServiceType, filterBudget
     }
 
     // Only show records where current user is the service provider, not the requester
-    const isServiceProvider = record.provider?._id === user._id;
+    const isServiceProvider = record.acceptedBy?._id === user._id || record.acceptedById === user._id;
     if (!isServiceProvider) {
-      console.log("Skipping record where user is not service provider:", record._id, "Provider:", record.provider?._id, "Current user:", user._id);
+      console.log("Skipping record where user is not service provider:", record._id, "AcceptedBy:", record.acceptedBy?._id, "Current user:", user._id);
       return false;
     }
 
@@ -81,8 +81,8 @@ const WorkRecords = ({ searchTerm, filterStatus, filterServiceType, filterBudget
     <>
       {filteredRecords.length === 0 ? (
         <div className="no-results">
+          <img src="/records.png" alt="No results" style={{width: 100, height: 100, opacity: 0.5, marginBottom: 10}} />
           <p>No Work Records Found</p>
-          <p className="no-results-subtitle">*This will be shown if no results found, but search bar and filter will stay*</p>
         </div>
       ) : (
         <table className="records-table">

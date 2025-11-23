@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import { useMainContext } from "../../mainContext";
 import { usePopup } from "../../components/Layout/PopupContext";
@@ -9,6 +10,7 @@ import WorkRecords from './WorkRecords';
 import "./UserRecords.css";
 
 const UserWorkRecord = () => {
+  const navigate = useNavigate();
   const { user, openChat } = useMainContext();
   const { showNotification } = usePopup();
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,6 +23,42 @@ const UserWorkRecord = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
+  const [myRequests, setMyRequests] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [requests, setRequests] = useState([]);
+
+  const fetchMyRequests = async () => {
+    try {
+      const { data } = await api.get("/user/user-service-requests", { withCredentials: true });
+      setMyRequests(data.requests || []);
+    } catch (err) {
+      console.error("Error fetching my requests:", err);
+    }
+  };
+
+  const fetchWorkRecords = async () => {
+    try {
+      const { data } = await api.get("/user/bookings");
+      setRecords(data.bookings || []);
+    } catch (err) {
+      console.error("Error fetching records:", err);
+    }
+  };
+
+  const fetchCurrentRequests = async () => {
+    try {
+      const { data } = await api.get("/user/service-requests", { withCredentials: true });
+      setRequests(data.requests || []);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMyRequests();
+    fetchWorkRecords();
+    fetchCurrentRequests();
+  }, []);
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -42,18 +80,50 @@ const UserWorkRecord = () => {
 
   // Popup handlers
   const handleRequestClick = (request) => {
-    setSelectedRequest(request);
-    setPopupOpen(true);
+    if (request.serviceRequest) {
+      // It's a booking, navigate to OrderDetails
+      const order = {
+        worker: request.acceptedBy ? `${request.acceptedBy.firstName} ${request.acceptedBy.lastName}` : 'N/A',
+        type: request.serviceRequest.typeOfWork,
+        status: request.status,
+        date: request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
+        address: request.serviceRequest.address,
+        id: request._id,
+        price: `${request.serviceRequest.budget}`,
+        isOwnOrder: false
+      };
+      navigate('/order-details', { state: { order } });
+    } else {
+      // Regular request
+      const isMyRequest = myRequests.find(r => r._id === request._id);
+      if (isMyRequest && (request.status === 'Completed' || request.status === 'Working')) {
+        // Navigate to OrderDetails for user's own completed/working requests
+        const order = {
+          worker: request.acceptedBy ? `${request.acceptedBy.firstName} ${request.acceptedBy.lastName}` : 'Not assigned',
+          type: request.typeOfWork,
+          status: request.status,
+          date: request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '',
+          address: request.address,
+          id: request._id,
+          price: `${request.budget}`,
+          isOwnOrder: true
+        };
+        navigate('/order-details', { state: { order } });
+      } else if (isMyRequest && request.status !== 'Completed' && request.status !== 'Working' && request.status !== 'Cancelled') {
+        // Navigate to WaitingForWorker for user's own pending requests
+        navigate('/waiting-for-worker', { state: { orderData: request } });
+      } else {
+        // Open modal for other requests
+        setSelectedRequest(request);
+        setPopupOpen(true);
+      }
+    }
   };
 
   const handleClosePopup = () => {
     setPopupOpen(false);
     setSelectedRequest(null);
   };
-
-
-
-
 
   const handleChatClick = (request) => {
     if (request.acceptedBy) {
@@ -94,6 +164,7 @@ const UserWorkRecord = () => {
 
       if (response.data.success) {
         showNotification("Request cancelled successfully!", "success", 3000, "Success");
+        fetchMyRequests();
       } else {
         showNotification("Failed to cancel request. Please try again.", "error", 4000, "Error");
       }
@@ -107,7 +178,7 @@ const UserWorkRecord = () => {
     e.stopPropagation();
 
     if (user.role !== "Service Provider") {
-      alert("You must be a Service Provider to accept service requests.");
+      showNotification("You must complete your service provider application and get approved by an admin before accepting service requests.", "error", 5000, "Application Required");
       return;
     }
 
@@ -115,6 +186,7 @@ const UserWorkRecord = () => {
       const response = await api.post(`/user/service-request/${request._id}/accept`);
       if (response.data.success) {
         showNotification("Request accepted successfully!", "success", 3000, "Success");
+        fetchCurrentRequests();
         handleClosePopup();
       }
     } catch (err) {
@@ -140,6 +212,7 @@ const UserWorkRecord = () => {
       const response = await api.put(`/user/service-request/${editRequest._id}/update`, editRequest);
       if (response.data.success) {
         showNotification("Request updated successfully!", "success", 3000, "Success");
+        fetchMyRequests();
         handleCloseEditModal();
       }
     } catch (err) {
@@ -174,8 +247,6 @@ const UserWorkRecord = () => {
           </button>
         </div>
 
-
-
         {/* Advanced Filters */}
         {showFilters && (
           <div className="records-filters">
@@ -194,8 +265,6 @@ const UserWorkRecord = () => {
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
-
-
 
               <div className="filter-group">
                 <label>Min Budget (₱):</label>
@@ -264,7 +333,7 @@ const UserWorkRecord = () => {
 
       <div className="records-content">
         {activeTab === "my-requests" && <MyRequests searchTerm={searchTerm} filterStatus={filterStatus} filterServiceType={filterServiceType} filterBudgetRange={filterBudgetRange} handleRequestClick={handleRequestClick} handleChatRequest={handleChatRequest} handleEditRequest={handleEditRequest} handleCancelRequest={handleCancelRequest} getStatusClass={getStatusClass} />}
-        {activeTab === "available-requests" && <AvailableRequests searchTerm={searchTerm} filterStatus={filterStatus} filterServiceType={filterServiceType} filterBudgetRange={filterBudgetRange} handleRequestClick={handleRequestClick} getStatusClass={getStatusClass} />}
+        {activeTab === "available-requests" && <AvailableRequests searchTerm={searchTerm} filterStatus={filterStatus} filterServiceType={filterServiceType} filterBudgetRange={filterBudgetRange} handleRequestClick={handleRequestClick} handleAcceptRequest={handleAcceptRequest} handleDeclineRequest={handleDeclineRequest} getStatusClass={getStatusClass} />}
         {activeTab === "work-records" && <WorkRecords searchTerm={searchTerm} filterStatus={filterStatus} filterServiceType={filterServiceType} filterBudgetRange={filterBudgetRange} handleRequestClick={handleRequestClick} getStatusClass={getStatusClass} />}
       </div>
 

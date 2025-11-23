@@ -3,7 +3,7 @@ import api from "../../api";
 import { useMainContext } from "../../mainContext";
 import socket from "../../utils/socket";
 
-const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filterBudgetRange, handleRequestClick, getStatusClass }) => {
+const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filterBudgetRange, handleRequestClick, handleAcceptRequest, handleDeclineRequest, getStatusClass }) => {
   const { user } = useMainContext();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filter
       return false;
     }
 
-    const isAvailableRequest = request.status === "Available";
+    const isAvailableRequest = request.status === "Available" || request.status === "Waiting" || request.status === "Open";
     if (!isAvailableRequest) return false;
 
     // Exclude current user's own requests
@@ -74,12 +74,22 @@ const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filter
 
   if (loading) return <div className="records-loading">Loading records...</div>;
   if (error) return <div className="records-error">{error}</div>;
+
+  if (user.role !== "Service Provider") {
+    return (
+      <div className="no-results">
+        <img src="/records.png" alt="No results" style={{width: 100, height: 100, opacity: 0.5, marginBottom: 10}} />
+        <p>Only Service Providers can view available requests.</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {filteredRequests.length === 0 ? (
         <div className="no-results">
+          <img src="/records.png" alt="No results" style={{width: 100, height: 100, opacity: 0.5, marginBottom: 10}} />
           <p>No Available Requests Found</p>
-          <p className="no-results-subtitle">*This will be shown if no results found, but search bar and filter will stay*</p>
         </div>
       ) : (
         <table className="records-table">
@@ -119,7 +129,10 @@ const AvailableRequests = ({ searchTerm, filterStatus, filterServiceType, filter
                 <td>₱{request.budget || "0"}</td>
                 <td>{request.time || "Not specified"}</td>
                 <td>
-                  <button className="action-btn accept" onClick={() => handleRequestClick(request)}>View Details</button>
+                  <div className="request-actions">
+                    <button className="action-btn accept" onClick={(e) => { e.stopPropagation(); handleAcceptRequest(request, e); }}>Accept</button>
+                    <button className="action-btn decline" onClick={(e) => { e.stopPropagation(); handleDeclineRequest(request, e); }}>Decline</button>
+                  </div>
                 </td>
               </tr>
             ))}
