@@ -1,12 +1,11 @@
 {
   "expo": {
     "name": "skillconnect4b410",
-    "slug": "skillconnect4b410",
+    "slug": "skillconnect",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -14,13 +13,11 @@
     },
     "ios": {
       "supportsTablet": true
-      
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.SkillKonek"
@@ -30,8 +27,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "0224d45c-dd8b-4bf3-a30c-783563eae758"
+        "projectId": "c932b304-91d5-48ee-9e5c-7193121b4f44"
       }
-    }
+    },
+    "owner": "jocasiano27"
   }
 }

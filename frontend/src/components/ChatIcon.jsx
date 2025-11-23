@@ -7,7 +7,7 @@ import { FaFacebookMessenger, FaLocationArrow  } from 'react-icons/fa';
 import { BsThreeDotsVertical } from 'react-icons/bs';
 
 // Constants
-const API_BASE_URL = "http://192.168.1.11:4000/api/v1";
+const API_BASE_URL = "https://skillconnect4b410-backend.onrender.com/api/v1";
 
 // Helper function to get full profile image URL
 const getProfileImageUrl = (profilePic) => {

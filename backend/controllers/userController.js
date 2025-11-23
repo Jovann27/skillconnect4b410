@@ -46,7 +46,7 @@ export const register = catchAsyncError(async (req, res, next) => {
   const [isUsername, isPhone, isEmail] = await Promise.all([
     User.findOne({ username }),
     User.findOne({ phone }),
-    User.findOne({ email }),
+    User.findOne({ email: email.toLowerCase() }),
   ]);
 
   if (isUsername) return next(new ErrorHandler("Username already exists", 400));
@@ -107,7 +107,7 @@ export const login = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) return next(new ErrorHandler("Please fill up all fields", 400));
 
-  const user = await User.findOne({ email }).select("+password");
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
   if (!user) return next(new ErrorHandler("Invalid email or password!", 400));
 
   const isPasswordMatched = await user.comparePassword(password);
@@ -171,7 +171,7 @@ export const updateProfile = catchAsyncError(async (req, res, next) => {
 
   // Validate email uniqueness if email is being updated
   if (updates.email) {
-    const existingUser = await User.findOne({ email: updates.email });
+    const existingUser = await User.findOne({ email: updates.email.toLowerCase() });
     if (existingUser && existingUser._id.toString() !== userId.toString()) {
       return next(new ErrorHandler("Email already exists", 400));
     }
@@ -301,7 +301,7 @@ export const sendVerificationOTP = catchAsyncError(async (req, res, next) => {
   }
 
   // Check if user exists with this email
-  const user = await User.findOne({ email: trimmedEmail });
+  const user = await User.findOne({ email: trimmedEmail.toLowerCase() });
   if (!user) {
     return next(new ErrorHandler("No account found with this email address", 404));
   }
@@ -414,7 +414,7 @@ export const resetPassword = catchAsyncError(async (req, res, next) => {
   }
 
   // Find user by email
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
     return next(new ErrorHandler("User not found", 404));
   }
