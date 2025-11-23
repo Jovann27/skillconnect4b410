@@ -55,8 +55,8 @@ const MyRequests = ({ searchTerm, filterStatus, filterServiceType, filterBudgetR
     <>
       {filteredMyRequests.length === 0 ? (
         <div className="no-results">
+          <img src="/records.png" alt="No results" style={{width: 100, height: 100, opacity: 0.5, marginBottom: 10}} />
           <p>No My Requests Found</p>
-          <p className="no-results-subtitle">*This will be shown if no results found, but search bar and filter will stay*</p>
         </div>
       ) : (
         <table className="records-table">

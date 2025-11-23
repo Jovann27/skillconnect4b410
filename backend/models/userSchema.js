@@ -84,6 +84,9 @@ const userSchema = new mongoose.Schema({
   // Blocked users (for user-level blocking)
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+  // Favourite workers
+  favourites: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
   createdAt: { type: Date, default: Date.now },
 }, {
   timestamps: true,

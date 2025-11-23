@@ -22,7 +22,8 @@
   padding: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 600px;
 }
 
 
@@ -68,9 +69,6 @@
   padding: 0;
   gap: 30px;
   align-items: center;
-  flex: 1;
-  justify-content: flex-end;
-  margin-right: 20px;
 }
 
 
@@ -87,7 +85,6 @@
 .navbar-icon-btn,
 .dashboard-toggle {
   background: rgba(255, 255, 255, 0.15);
-  padding: 8px;
   border-radius: 8px;
   cursor: pointer;
   transition: 0.15s ease-in-out;
@@ -319,17 +316,14 @@
 
 /* Mobile dropdown adjustments */
 @media screen and (max-width: 768px) {
-  .navbar-menu {
-    position: absolute;
-    top: 70px;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #dd306a 0%, #fc60ae 100%);
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 15px 20px;
-    display: none;
-  }
+.navbar-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 30px;
+  align-items: center;
+}
 
 
   .navbar-menu.mobile-menu.show {

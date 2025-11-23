@@ -1,4 +1,3 @@
-
 // Create a simple custom event manager compatible with React Native
 const listeners = new Set();
 

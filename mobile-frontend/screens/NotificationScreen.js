@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+ import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, StyleSheet, Dimensions } from "react-native";
 import apiClient from "../api";
 
@@ -21,21 +21,35 @@ export default function NotificationScreen() {
     fetchNotifications();
   }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.item}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.body}>{item.body}</Text>
+  const renderItem = ({ item }) => {
+    const formatDate = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    return (
+      <View style={styles.item}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.body}>{item.message}</Text>
+          {item.title === "Request Accepted" && item.meta && item.meta.date && (
+            <Text style={styles.meta}>Booking Date: {formatDate(item.meta.date)}</Text>
+          )}
+          {item.title === "Request Accepted" && item.meta && item.meta.service && (
+            <Text style={styles.meta}>Service: {item.meta.service}</Text>
+          )}
+        </View>
+        <Text style={styles.date}>{formatDate(item.createdAt || item.date)}</Text>
       </View>
-      <Text style={styles.date}>{item.date}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
       <FlatList
         data={notifications}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -66,6 +80,11 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 13,
     color: "#555",
+  },
+  meta: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 4,
   },
   date: {
     fontSize: 12,

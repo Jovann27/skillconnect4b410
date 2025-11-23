@@ -68,11 +68,11 @@ export const MainProvider = ({ children }) => {
         console.log('Order update:', data);
       };
 
-      socket.on('notification', handleNotification);
+      socket.on('new-notification', handleNotification);
       socket.on('orderUpdate', handleOrderUpdate);
 
       return () => {
-        socket.off('notification', handleNotification);
+        socket.off('new-notification', handleNotification);
         socket.off('orderUpdate', handleOrderUpdate);
       };
     }
@@ -196,6 +196,11 @@ export const MainProvider = ({ children }) => {
     getBlockedUsers: () => apiClient.get('/user/blocked-users'),
     blockUser: (targetUserId) => apiClient.post('/user/block-user', { targetUserId }),
     unblockUser: (targetUserId) => apiClient.delete(`/user/unblock-user/${targetUserId}`),
+
+    // Favourites
+    getFavourites: () => apiClient.get('/user/favourites'),
+    addToFavourites: (workerId) => apiClient.post('/user/add-to-favourites', { workerId }),
+    removeFromFavourites: (workerId) => apiClient.delete(`/user/remove-from-favourites/${workerId}`),
   };
 
   const value = {

@@ -14,6 +14,25 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { socket } from "../utils/socket";
 import { useMainContext } from "../contexts/MainContext";
 
+// Constants
+const API_BASE_URL = 'http://192.168.1.11:4000/api/v1';
+
+// Helper function to get full profile image URL
+const getProfileImageUrl = (profilePic) => {
+  if (!profilePic) return require("../assets/default-profile.png");
+  if (profilePic.startsWith('http')) return { uri: profilePic };
+  return { uri: `${API_BASE_URL}${profilePic}` };
+};
+
+// Helper function to sort chat list by last message timestamp
+const sortChatList = (list) => {
+  return list.sort((a, b) => {
+    const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(0);
+    const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(0);
+    return bTime - aTime;
+  });
+};
+
 // Note: helpAPI is not implemented yet, using fallback hardcoded topics
 
 export default function Chat({ route, navigation }) {
@@ -80,10 +99,11 @@ export default function Chat({ route, navigation }) {
       });
 
       const groupedChatList = Object.values(groupedChats);
-      setChatList(groupedChatList);
+      const sortedChatList = sortChatList(groupedChatList);
+      setChatList(sortedChatList);
 
       const counts = {};
-      groupedChatList.forEach(chat => {
+      sortedChatList.forEach(chat => {
         // Use the first appointment ID for unread counts (simplified)
         counts[chat.appointments[0]] = chat.totalUnreadCount;
       });
@@ -244,6 +264,20 @@ export default function Chat({ route, navigation }) {
           ...prev,
           [message.appointment]: (prev[message.appointment] || 0) + 1
         }));
+        // Update chat list with new message
+        setChatList(prev => {
+          const updated = prev.map(chat => {
+            if (chat.appointments.includes(message.appointment)) {
+              return {
+                ...chat,
+                lastMessage: message,
+                totalUnreadCount: chat.totalUnreadCount + 1
+              };
+            }
+            return chat;
+          });
+          return sortChatList(updated);
+        });
       }
       scrollToBottom();
     };
@@ -312,7 +346,7 @@ export default function Chat({ route, navigation }) {
       const sentMessage = {
         id: response.data.messageId || Date.now(),
         message: newMessage.trim(),
-        sender: { _id: user._id, firstName: user.firstName, lastName: user.lastName, profileImage: user.profilePic },
+        sender: { _id: user._id, firstName: user.firstName, lastName: user.lastName, profilePic: user.profilePic },
         timestamp: new Date(),
         status: 'sent'
       };
@@ -444,11 +478,7 @@ export default function Chat({ route, navigation }) {
       onPress={() => openChat(item)}
     >
       <Image
-        source={
-          item.otherUser?.profilePic
-            ? { uri: item.otherUser.profilePic }
-            : require("../assets/default-profile.png")
-        }
+        source={getProfileImageUrl(item.otherUser?.profilePic)}
         style={styles.chatListImage}
       />
       <View style={styles.chatListContent}>
@@ -492,11 +522,7 @@ export default function Chat({ route, navigation }) {
         <View style={[styles.messageContainer, isOwn ? styles.ownContainer : styles.otherContainer]}>
           {!isOwn && (
             <Image
-              source={
-                item.sender.profilePic
-                  ? { uri: item.sender.profilePic }
-                  : require("../assets/default-profile.png")
-              }
+              source={getProfileImageUrl(item.sender.profilePic)}
               style={styles.messageAvatar}
             />
           )}

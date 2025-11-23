@@ -438,10 +438,10 @@ const MyService = () => {
               <p><strong>Rate:</strong> {formData.rate}</p>
               <p><strong>Description:</strong> {formData.description}</p>
             </div>
-            <button className="btn-primary" onClick={() => {
+            {/* <button className="btn-primary" onClick={() => {
               setEditFormData({ ...formData });
               setShowEditModal(true);
-            }}>EDIT</button>
+            }}>EDIT</button> */}
           </div>
 
           <div className="client-request-section">

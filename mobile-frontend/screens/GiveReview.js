@@ -7,17 +7,20 @@ import {
   TextInput,
   Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import apiClient from "../api";
+import { useMainContext } from "../contexts/MainContext";
 
 export default function GiveReview({ route, navigation }) {
+  const { api } = useMainContext();
   const { order } = route.params || {};
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [photos, setPhotos] = useState([]); // <-- MULTIPLE PHOTOS
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -38,24 +41,39 @@ export default function GiveReview({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      alert("Please select a star rating.");
+      Alert.alert("Error", "Please select a star rating.");
       return;
     }
 
+    if (!order?.bookingId) {
+      Alert.alert("Error", "Booking information is missing.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
       const reviewData = {
+        bookingId: order.bookingId,
         rating,
         comments: comment,
-        images: photos, // Assuming backend handles image uploads
-        // Add other fields like reviewee id from order
-        reviewee: order?.workerId || "worker_id", // Need to get from order
+        // Note: Images are not currently supported in the backend review system
       };
-      await apiClient.post("/reviews", reviewData);
-      alert("Thank you for your review!");
-      navigation.goBack();
+
+      const response = await api.createReview(reviewData);
+
+      if (response.data.success) {
+        Alert.alert("Success", "Thank you for your review!", [
+          { text: "OK", onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert("Error", "Failed to submit review. Please try again.");
+      }
     } catch (error) {
-      console.log("Error submitting review:", error);
-      alert("Failed to submit review. Please try again.");
+      console.error("Error submitting review:", error);
+      Alert.alert("Error", "Failed to submit review. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,8 +165,14 @@ export default function GiveReview({ route, navigation }) {
 
     {/* FIXED FOOTER BUTTON */}
     <View style={styles.footer}>
-      <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-        <Text style={styles.submitText}>Submit Review</Text>
+      <TouchableOpacity
+        style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.submitText}>
+          {isSubmitting ? "Submitting..." : "Submit Review"}
+        </Text>
       </TouchableOpacity>
     </View>
   </View>
@@ -285,6 +309,10 @@ submitBtn: {
   borderRadius: 12,
   alignItems: "center",
   marginBottom: 18,
+},
+
+submitBtnDisabled: {
+  backgroundColor: "#ccc",
 },
 
 submitText: {

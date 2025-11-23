@@ -14,6 +14,7 @@ import * as Device from "expo-device";
 import Login from "./screens/auth/Login";
 import ForgotPassword from "./screens/auth/ForgotPassword";
 import Register from "./screens/auth/Register";
+import ResetPassword from "./screens/auth/ResetPassword";
 import Home from "./screens/home/Home";
 import Settings from "./screens/Settings";
 import Profile from "./screens/profile/Profile";
@@ -417,10 +418,26 @@ export default function App() {
               component={GiveReview}
               options={{
                 presentation: "modal",     // FULL SCREEN MODAL
-                headerShown: false,     
+                headerShown: false,
               }}
             />
 
+            <Stack.Screen
+              name="ResetPassword"
+              component={ResetPassword}
+              options={({ navigation }) => ({
+                headerTitle: "Reset Password",
+                headerTitleStyle: { fontSize: 17 },
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#000" />
+                  </TouchableOpacity>
+                ),
+              })}
+            />
 
           </Stack.Navigator>
         )}

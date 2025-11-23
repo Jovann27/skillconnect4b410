@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import apiClient from "../api";
+import { useMainContext } from "../contexts/MainContext";
 
 const { width } = Dimensions.get("window");
 
 export default function ProfileReviews({ route, navigation }) {
+  const { api } = useMainContext();
   const [reviews, setReviews] = useState([]);
   const userId = route.params?.userId || "123";
   const fromFavorites = route.params?.fromFavorites || false;
@@ -23,30 +25,10 @@ export default function ProfileReviews({ route, navigation }) {
   const fetchReviews = async () => {
     try {
       const response = await apiClient.get(`/reviews/user/${userId}`);
-      setReviews(response.data);
+      setReviews(response.data.reviews);
     } catch (error) {
       console.log("Error fetching reviews:", error);
-
-      // fallback data
-      setReviews([
-        {
-          id: "1",
-          clientName: "Jeremy Alburea",
-          service: "Plumbing",
-          rating: 4,
-          comment:
-            "Very professional and efficient. Highly recommended for plumbing issues!",
-          images: [],
-        },
-        {
-          id: "2",
-          clientName: "Darlene Faith",
-          service: "Electrical",
-          rating: 5,
-          comment: "Excellent service! Quick and reliable work.",
-          images: ["https://via.placeholder.com/150"],
-        },
-      ]);
+      setReviews([]);
     }
   };
 
@@ -98,10 +80,24 @@ export default function ProfileReviews({ route, navigation }) {
     </View>
   );
 
-  const handleButtonPress = () => {
+  const handleButtonPress = async () => {
     if (fromFavorites) {
-      Alert.alert("Removed", "Worker has been removed from your favorites.");
-      // TODO: add API logic here
+      try {
+        const response = await api.removeFromFavourites(userId);
+        if (response.data.success) {
+          Alert.alert("Removed", "Worker has been removed from your favorites.", [
+            {
+              text: "OK",
+              onPress: () => navigation.goBack(),
+            },
+          ]);
+        } else {
+          Alert.alert("Error", "Failed to remove worker from favorites.");
+        }
+      } catch (error) {
+        console.error("Error removing from favourites:", error);
+        Alert.alert("Error", "Failed to remove worker from favorites.");
+      }
     } else {
       navigation.navigate("Profile");
     }

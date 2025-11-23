@@ -294,13 +294,14 @@ export const sendVerificationOTP = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Email is required", 400));
   }
 
+  const trimmedEmail = email.trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (!emailRegex.test(trimmedEmail)) {
     return next(new ErrorHandler("Invalid email format", 400));
   }
 
   // Check if user exists with this email
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: trimmedEmail });
   if (!user) {
     return next(new ErrorHandler("No account found with this email address", 404));
   }
@@ -310,7 +311,7 @@ export const sendVerificationOTP = catchAsyncError(async (req, res, next) => {
   const expiresAt = Date.now() + (10 * 60 * 1000);
 
   // Store OTP with email and purpose
-  const key = `${email}_${purpose}`;
+  const key = `${trimmedEmail}_${purpose}`;
   otpStore.set(key, { otp, expiresAt, userId: user._id });
 
   // Clean up expired OTPs
@@ -370,7 +371,8 @@ export const verifyOTP = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Email, OTP, and purpose are required", 400));
   }
 
-  const key = `${email}_${purpose}`;
+  const trimmedEmail = email.trim();
+  const key = `${trimmedEmail}_${purpose}`;
   const storedData = otpStore.get(key);
 
   if (!storedData) {
@@ -559,5 +561,89 @@ export const unblockUser = catchAsyncError(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "User unblocked successfully"
+  });
+});
+
+// Get user's favourite workers
+export const getFavourites = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const user = await User.findById(userId).populate('favourites', 'firstName lastName profilePic service skills');
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    favourites: user.favourites
+  });
+});
+
+// Add worker to favourites
+export const addToFavourites = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+  const { workerId } = req.body;
+
+  if (!workerId) {
+    return next(new ErrorHandler("Worker ID is required", 400));
+  }
+
+  if (userId.toString() === workerId.toString()) {
+    return next(new ErrorHandler("Cannot add yourself to favourites", 400));
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if target worker exists and is a service provider
+  const worker = await User.findById(workerId);
+  if (!worker) {
+    return next(new ErrorHandler("Worker not found", 404));
+  }
+
+  if (worker.role !== "Service Provider") {
+    return next(new ErrorHandler("Only service providers can be added to favourites", 400));
+  }
+
+  // Check if already in favourites
+  if (user.favourites.includes(workerId)) {
+    return next(new ErrorHandler("Worker is already in favourites", 400));
+  }
+
+  // Add to favourites
+  user.favourites.push(workerId);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Worker added to favourites successfully"
+  });
+});
+
+// Remove worker from favourites
+export const removeFromFavourites = catchAsyncError(async (req, res, next) => {
+  const userId = req.user._id;
+  const { workerId } = req.params;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  // Check if worker is in favourites
+  const favouriteIndex = user.favourites.indexOf(workerId);
+  if (favouriteIndex === -1) {
+    return next(new ErrorHandler("Worker is not in favourites", 400));
+  }
+
+  // Remove from favourites
+  user.favourites.splice(favouriteIndex, 1);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Worker removed from favourites successfully"
   });
 });

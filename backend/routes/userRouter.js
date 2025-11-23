@@ -1,5 +1,5 @@
 import express from "express";
-import { register, login, logout, getMyProfile, getUserProfile, updateProfile, updateUserPassword, getPasswordLength, sendVerificationOTP, verifyOTP, resetPassword, getNotificationPreferences, updateNotificationPreferences, getBlockedUsers, blockUser, unblockUser } from "../controllers/userController.js";
+import { register, login, logout, getMyProfile, getUserProfile, updateProfile, updateUserPassword, getPasswordLength, sendVerificationOTP, verifyOTP, resetPassword, getNotificationPreferences, updateNotificationPreferences, getBlockedUsers, blockUser, unblockUser, getFavourites, addToFavourites, removeFromFavourites } from "../controllers/userController.js";
 import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadCount } from "../controllers/notificationController.js";
 import { getChatHistory, sendMessage, getChatList, markMessagesAsSeen } from "../controllers/userFlowController.js";
 import { isUserAuthenticated } from "../middlewares/auth.js";
@@ -40,5 +40,10 @@ router.get("/chat-history", isUserAuthenticated, getChatHistory);
 router.get("/chat-list", isUserAuthenticated, getChatList);
 router.post("/send-message", isUserAuthenticated, sendMessage);
 router.put("/chat/:appointmentId/mark-seen", isUserAuthenticated, markMessagesAsSeen);
+
+// Favourites Management
+router.get("/favourites", isUserAuthenticated, getFavourites);
+router.post("/add-to-favourites", isUserAuthenticated, addToFavourites);
+router.delete("/remove-from-favourites/:workerId", isUserAuthenticated, removeFromFavourites);
 
 export default router;

@@ -351,8 +351,8 @@ export const acceptServiceRequest = catchAsyncError(async (req, res, next) => {
   await sendNotification(
     request.requester._id,
     "Request Accepted",
-    `Your request "${request.name}" has been accepted by ${provider.firstName} ${provider.lastName}`,
-    { bookingId: booking._id }
+    `Your "${request.typeOfWork}" request has been accepted by ${provider.username}`,
+    { date: booking.createdAt, service: request.typeOfWork }
   );
 
   // Emit socket events for real-time updates

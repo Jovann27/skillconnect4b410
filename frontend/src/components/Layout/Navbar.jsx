@@ -254,9 +254,11 @@ const Navbar = () => {
             )}
 
             {user?.role === 'Service Provider' && tokenType !== 'admin' && (
-            <Link to="/user/my-service">
-                          <FaCartPlus />
-                        </Link>
+            <li role="none">
+              <Link to="/user/my-service" className="navbar-icon-btn" aria-label="My Service">
+                <FaCartPlus size={24} />
+              </Link>
+            </li>
             )}
 
             {/* User Dashboard Dropdown */}
@@ -269,7 +271,7 @@ const Navbar = () => {
                   aria-label="User dashboard menu"
                   aria-expanded={dashboardDropdown}
                 >
-                  <FaUser />
+                  <FaUser size={24} />
                 </button>
                 {dashboardDropdown && (
                   <ul className="dropdown-menu">

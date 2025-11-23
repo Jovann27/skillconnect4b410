@@ -5,6 +5,25 @@ import socket from '../utils/socket';
 import './ChatIcon.css';
 import { FaFacebookMessenger, FaLocationArrow  } from 'react-icons/fa';
 
+// Constants
+const API_BASE_URL = "http://192.168.1.11:4000/api/v1";
+
+// Helper function to get full profile image URL
+const getProfileImageUrl = (profilePic) => {
+  if (!profilePic) return '/skillconnect.png'; // default
+  if (profilePic.startsWith('http')) return profilePic;
+  return `${API_BASE_URL.replace('/api/v1', '')}${profilePic}`;
+};
+
+// Helper function to sort chat list by last message timestamp
+const sortChatList = (list) => {
+  return list.sort((a, b) => {
+    const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(0);
+    const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(0);
+    return bTime - aTime;
+  });
+};
+
 const ChatIcon = () => {
   const { isAuthorized, tokenType, user, admin, openChatAppointmentId, setOpenChatAppointmentId } = useMainContext();
   const [isOpen, setIsOpen] = useState(false);
@@ -64,10 +83,11 @@ const ChatIcon = () => {
       });
 
       const groupedChatList = Object.values(groupedChats);
-      setChatList(groupedChatList);
+      const sortedChatList = sortChatList(groupedChatList);
+      setChatList(sortedChatList);
 
       const counts = {};
-      groupedChatList.forEach(chat => {
+      sortedChatList.forEach(chat => {
         counts[chat.appointments[0]] = chat.totalUnreadCount;
       });
       setUnreadCounts(counts);
@@ -106,6 +126,20 @@ const ChatIcon = () => {
           ...prev,
           [message.appointment]: (prev[message.appointment] || 0) + 1
         }));
+        // Update chat list with new message
+        setChatList(prev => {
+          const updated = prev.map(chat => {
+            if (chat.appointments.includes(message.appointment)) {
+              return {
+                ...chat,
+                lastMessage: message,
+                totalUnreadCount: chat.totalUnreadCount + 1
+              };
+            }
+            return chat;
+          });
+          return sortChatList(updated);
+        });
       }
       scrollToBottom();
     };
@@ -315,6 +349,16 @@ const ChatIcon = () => {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return;
 
+    // Add the sent message to the UI immediately
+    const sentMessage = {
+      id: Date.now(),
+      message: newMessage.trim(),
+      sender: { _id: user._id, firstName: user.firstName, lastName: user.lastName, profilePic: user.profilePic },
+      timestamp: new Date(),
+      status: 'sent'
+    };
+    setMessages(prev => [...prev, sentMessage]);
+
     try {
       await api.post('/user/send-message', {
         appointmentId: selectedChat.appointmentId,
@@ -330,6 +374,8 @@ const ChatIcon = () => {
     } catch (err) {
       console.error('Error sending message:', err);
       setError('Failed to send message');
+      // Remove the message if sending failed
+      setMessages(prev => prev.filter(msg => msg.id !== sentMessage.id));
     }
   };
 
@@ -450,7 +496,7 @@ const ChatIcon = () => {
     <>
       {/* Chat Icon */}
       <button className="navbar-icon-btn" onClick={toggleChat}>
-        <span className="chat-icon-text"><FaFacebookMessenger /></span>
+        <FaFacebookMessenger size={24} />
         {totalUnreadCount > 0 && (
           <span className="chat-badge">{totalUnreadCount}</span>
         )}
@@ -555,7 +601,7 @@ const ChatIcon = () => {
                       <div className={`message ${msg.sender._id === user._id ? 'own' : 'other'}`}>
                         {msg.sender._id !== user._id && (
                           <img
-                            src={msg.sender.profilePic}
+                            src={getProfileImageUrl(msg.sender.profilePic)}
                             alt={`${msg.sender.firstName} ${msg.sender.lastName}`}
                             className="message-avatar"
                           />
