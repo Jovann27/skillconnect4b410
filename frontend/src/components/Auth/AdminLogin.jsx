@@ -114,11 +114,7 @@ const AdminLogin = () => {
       <div className="auth-card admin-card">
         {/* Enhanced Header */}
         <div className="auth-banner admin-banner">
-          <img
-            src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"
-            alt="SkillConnect4B410 Logo"
-            className="admin-logo"
-          />
+      
           <h2>Administrator Portal</h2>
           <p className="admin-subtitle">Secure access for authorized administrators</p>
         </div>

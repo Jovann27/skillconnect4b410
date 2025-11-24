@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export const dbConnection = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/skillconnect";
+    const mongoUri = process.env.MONGO_URI || "mongodb+srv://skillconnect:16FapDsSca9IcpV2@skillconnect4b410.lceuwef.mongodb.net/?appName=Skillconnect4b410/skillconnect";
 
     if (mongoUri.includes("your-username") || mongoUri.includes("xxxxx")) {
       console.log("⚠️  Please set up your MongoDB database:");

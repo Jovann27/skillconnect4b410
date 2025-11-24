@@ -197,10 +197,6 @@ const Register = () => {
       <div className="auth-card register-card">
         {/* Banner */}
         <div className="auth-banner">
-          <img
-            src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"
-            alt="Logo"
-          />
           <h2>SkillConnect4B410</h2>
           <p>Create your account to book or offer services in the community.</p>
         </div>

@@ -140,10 +140,6 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-banner">
-          <img
-            src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"
-            alt="SkillConnect4B410 Logo"
-          />
           <h2>Welcome Back</h2>
           <p>Sign in to your account</p>
         </div>
