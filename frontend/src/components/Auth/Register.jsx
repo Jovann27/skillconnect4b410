@@ -42,9 +42,9 @@ const Register = () => {
       errors.username = "Username must be at least 3 characters long";
     }
 
-    // Password validation
-    if (!formData.password || formData.password.length < 6) {
-      errors.password = "Password must be at least 6 characters long";
+    // Password validation (must match backend requirement of 8 characters)
+    if (!formData.password || formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters long";
     }
 
     // Confirm password validation
@@ -58,10 +58,10 @@ const Register = () => {
       errors.email = "Please enter a valid email address";
     }
 
-    // Phone validation
-    const phoneRegex = /^[\+]?[0-9\-\(\)\s]+$/;
+    // Phone validation (must match backend format: +63XXXXXXXXXX or 0XXXXXXXXXX)
+    const phoneRegex = /^(\+63|0)[0-9]{10}$/;
     if (!formData.phone || !phoneRegex.test(formData.phone)) {
-      errors.phone = "Please enter a valid phone number";
+      errors.phone = "Invalid phone number format. Use +63XXXXXXXXXX or 0XXXXXXXXXX";
     }
 
     // Required fields validation
@@ -71,6 +71,9 @@ const Register = () => {
     if (!formData.birthdate) errors.birthdate = "Birthdate is required";
     if (!formData.employed || !["employed", "unemployed"].includes(formData.employed)) {
       errors.employed = "Employment status must be Employed or Unemployed";
+    }
+    if (!formData.role || !["Community Member", "Service Provider Applicant"].includes(formData.role)) {
+      errors.role = "Please select a valid role";
     }
 
     // Service Provider specific validation
@@ -137,17 +140,44 @@ const Register = () => {
 
     try {
       const submitData = new FormData();
-      Object.keys(formData).forEach((key) => {
-        if (formData[key]) {
-          if (key === "certificates") {
-            formData[key].forEach((file) => submitData.append(key, file));
-          } else if (key === "validId" && formData.role !== "Service Provider Applicant") {
-            return;
-          } else {
-            submitData.append(key, formData[key]);
-          }
+      
+      // Always include required fields
+      submitData.append("username", formData.username);
+      submitData.append("password", formData.password);
+      submitData.append("confirmPassword", formData.confirmPassword);
+      submitData.append("firstName", formData.firstName);
+      submitData.append("lastName", formData.lastName);
+      submitData.append("email", formData.email);
+      submitData.append("phone", formData.phone);
+      submitData.append("address", formData.address);
+      submitData.append("birthdate", formData.birthdate);
+      submitData.append("employed", formData.employed);
+      submitData.append("role", formData.role);
+      
+      // Optional fields
+      if (formData.occupation) {
+        submitData.append("occupation", formData.occupation);
+      }
+      
+      // Profile picture (optional)
+      if (formData.profilePic) {
+        submitData.append("profilePic", formData.profilePic);
+      }
+      
+      // Service Provider specific fields (only send if role is Service Provider Applicant)
+      if (formData.role === "Service Provider Applicant") {
+        if (formData.skills && formData.skills.length > 0) {
+          // Backend expects array - FormData will handle multiple values with same key as array
+          formData.skills.forEach((skill) => submitData.append("skills", skill));
         }
-      });
+        if (formData.certificates && formData.certificates.length > 0) {
+          formData.certificates.forEach((file) => submitData.append("certificates", file));
+        }
+        if (formData.validId) {
+          submitData.append("validId", formData.validId);
+        }
+      }
+      // For Community Members, don't send skills, certificates, or validId
 
       const { data } = await api.post(
         "/user/register",
@@ -162,10 +192,17 @@ const Register = () => {
       setUser(data.user);
       setIsAuthorized(true);
       setTokenType("user");
-      if (data.user.isVerified) {
-        navigate("/user/my-service");
+      
+      // Navigate based on user role
+      // Service Provider → /user/my-service
+      // Community Member and Service Provider Applicant → /user/service-request
+      if (data.user.role === "Service Provider") {
+        navigate("/user/my-service", { replace: true });
+        localStorage.setItem("userLastPath", "/user/my-service");
       } else {
-        navigate("/user/request-service");
+        // Community Member or Service Provider Applicant
+        navigate("/user/service-request", { replace: true });
+        localStorage.setItem("userLastPath", "/user/service-request");
       }
 
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -175,7 +212,14 @@ const Register = () => {
 
       setTimeout(() => setShowPopup(false), 5000);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Registration failed");
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || error.message || "Registration failed";
+      toast.error(errorMessage);
+      
+      // Log validation errors for debugging
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', error.response.data.errors);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -184,8 +228,8 @@ const Register = () => {
   // Password strength indicator
   const getPasswordStrength = (password) => {
     if (password.length === 0) return { strength: 0, label: "" };
-    if (password.length < 6) return { strength: 1, label: "Weak" };
-    if (password.length < 10) return { strength: 2, label: "Medium" };
+    if (password.length < 8) return { strength: 1, label: "Weak" };
+    if (password.length < 12) return { strength: 2, label: "Medium" };
     return { strength: 3, label: "Strong" };
   };
 
@@ -310,7 +354,7 @@ const Register = () => {
             </div>
           )}
           <small id="password-help" className="form-help">
-            Password must be at least 6 characters long
+            Password must be at least 8 characters long
           </small>
 
           {/* Confirm Password */}
@@ -477,7 +521,7 @@ const Register = () => {
             </small>
           )}
           <small id="phone-help" className="form-help">
-            Include country code for international numbers
+            Use format: +63XXXXXXXXXX or 0XXXXXXXXXX (10 digits after country code)
           </small>
 
           {/* Address */}

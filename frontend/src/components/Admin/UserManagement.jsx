@@ -317,9 +317,13 @@ const UserManagement = () => {
     if (!selectedUser) return;
 
     // Filter out services with empty names and validate
-    const validServices = serviceFormData.filter(service =>
-      service.name && service.name.trim() !== ''
-    );
+    const validServices = serviceFormData
+      .filter(service => service.name && service.name.trim() !== '')
+      .map(service => ({
+        name: service.name.trim(),
+        rate: typeof service.rate === 'number' ? service.rate : (parseFloat(service.rate) || 0),
+        description: service.description ? service.description.trim() : ''
+      }));
 
     if (validServices.length === 0) {
       toast.error("At least one service with a valid name is required");
@@ -328,7 +332,10 @@ const UserManagement = () => {
 
     setActionLoading('save-service');
     try {
-      const result = await api.put(`/admin/user/service-profile/${selectedUser._id}`, validServices);
+      // Backend expects { services: [...] } format
+      const result = await api.put(`/admin/user/service-profile/${selectedUser._id}`, {
+        services: validServices
+      });
       if (result.data.success) {
         toast.success("User service profile updated successfully");
         setShowServiceModal(false);
@@ -338,7 +345,8 @@ const UserManagement = () => {
       }
     } catch (err) {
       console.error("Error updating service profile:", err);
-      toast.error("Error updating service profile");
+      const errorMessage = err.response?.data?.message || "Error updating service profile";
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }

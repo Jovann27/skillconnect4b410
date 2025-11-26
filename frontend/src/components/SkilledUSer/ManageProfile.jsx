@@ -1,67 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { FaStar, FaRegStar } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import './dashboard-content.css';
+
 const ManageProfile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [formData, setFormData] = useState({
-    username: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    otherContact: '',
-    address: '',
-    birthdate: '',
-    occupation: '',
-    employed: false,
-    role: 'Community Member',
-    isApplyingProvider: false,
-    skills: '',
-    profilePic: null,
-    validId: null,
-    certificates: null,
-    availability: 'Not Available',
-    acceptedWork: false
-  });
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 });
+  const navigate = useNavigate();
+
   useEffect(() => {
-    const loadProfile = async () => {
-      await fetchUserProfile();
-    };
-    loadProfile();
+    fetchUserProfile();
   }, []);
 
-  // Removed signed URL fetching since validId is now only images
+  useEffect(() => {
+    if (user?._id) {
+      fetchUserInsights(user._id);
+    }
+  }, [user?._id]);
+
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
       const response = await api.get('/user/me');
       if (response.data.success) {
-        const userData = response.data.user;
-        setUser(userData);
-        setFormData({
-          username: userData.username || '',
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-          otherContact: userData.otherContact || '',
-          address: userData.address || '',
-          birthdate: userData.birthdate ? userData.birthdate.split('T')[0] : '',
-          occupation: userData.occupation || '',
-          employed: userData.employed || false,
-          role: userData.role || 'Community Member',
-          isApplyingProvider: userData.isApplyingProvider || false,
-          skills: Array.isArray(userData.skills) ? userData.skills.join(', ') : (typeof userData.skills === 'string' ? userData.skills.split(',').map(s => s.trim()).join(', ') : ''),
-          profilePic: null,
-          validId: null,
-          certificates: null,
-          availability: userData.availability || 'Not Available',
-          acceptedWork: userData.acceptedWork || false
-        });
+        setUser(response.data.user);
       }
     } catch (err) {
       setError('Failed to fetch profile data');
@@ -70,73 +37,79 @@ const ManageProfile = () => {
       setLoading(false);
     }
   };
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'certificates' ? files : files[0]
-    }));
-  };
-  // Removed unused function
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
+  const fetchUserInsights = async (userId) => {
     try {
-      const updateData = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (key !== 'profilePic' && key !== 'validId' && key !== 'certificates') {
-          if (key === 'skills') {
-            const skillsArray = formData[key].split(',').map(skill => skill.trim()).filter(Boolean);
-            updateData.append(key, JSON.stringify(skillsArray));
-          } else if (key === 'employed') {
-            updateData.append(key, formData[key].toString());
-          } else {
-            updateData.append(key, formData[key]);
-          }
-        }
-      });
-      if (formData.profilePic) {
-        updateData.append('profilePic', formData.profilePic);
+      setReviewsLoading(true);
+      const [reviewsRes, statsRes] = await Promise.all([
+        api.get(`/review/user/${userId}`),
+        api.get(`/review/stats/${userId}`)
+      ]);
+      if (reviewsRes.data.success) {
+        setReviews(reviewsRes.data.reviews || []);
       }
-      if (formData.validId) {
-        updateData.append('validId', formData.validId);
+      if (statsRes.data.success) {
+        setReviewStats(statsRes.data.stats || { averageRating: 0, totalReviews: 0 });
       }
-      if (formData.certificates) {
-        updateData.append('certificates', formData.certificates);
-      }
-      const response = await api.put('/user/update-profile', updateData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      if (response.data.success) {
-        setSuccess('Profile updated successfully!');
-        fetchUserProfile();
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update profile');
-      console.error('Error updating profile:', err);
+    } catch (insightError) {
+      console.error('Error fetching review insights:', insightError);
     } finally {
-      setSaving(false);
+      setReviewsLoading(false);
     }
   };
+
+  const maskEmail = (email) => {
+    if (!email) return '';
+    const [userPart, domain] = email.split('@');
+    if (!domain) return email;
+    const visible = userPart.slice(0, 2);
+    return `${visible}${'*'.repeat(Math.max(userPart.length - 2, 3))}@${domain}`;
+  };
+
+  const maskPhone = (phone) => {
+    if (!phone) return '';
+    return phone.replace(/.(?=.{4})/g, '*');
+  };
+
+  const formatAddress = (address = '') => {
+    const [street, rest] = address.split(',');
+    return rest ? `${street.trim()}, ${rest.trim()}` : address;
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const displaySkills = useMemo(() => {
+    if (!user?.skills || user.skills.length === 0) return 'No skills added yet';
+    return user.skills.map(skill => skill.charAt(0).toUpperCase() + skill.slice(1)).join(' • ');
+  }, [user?.skills]);
+
+  const renderStars = (value = 0) =>
+    Array.from({ length: 5 }, (_, index) => {
+      const score = index + 1;
+      return (
+        <span key={score} className="star-icon" aria-hidden="true">
+          {value >= score ? <FaStar /> : <FaRegStar />}
+        </span>
+      );
+    });
+
+  const placeholderProofs = ['', '', ''];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2" />
       </div>
     );
   }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -147,248 +120,149 @@ const ManageProfile = () => {
       </div>
     );
   }
+
+  const bioText = user.serviceDescription || '“Reliable and detail-oriented worker.”';
+
   return (
-    <div className="main-content">
-      <div className="profile-wrapper">
-        <h1 className="page-title">Account Management</h1>
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="success-message">
-            {success}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          <div className="profile-header">
-            <div className="profile-avatar-section">
-              <div className="avatar-container">
-                <img
-                  src={user.profilePic || '/default-avatar.png'}
-                  alt="Profile"
-                  className="profile-avatar"
-                />
-                <label htmlFor="profilePicInput" className="avatar-edit-overlay">
-                  <span className="edit-icon">📷</span>
-                </label>
-                <input
-                  type="file"
-                  id="profilePicInput"
-                  name="profilePic"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled
-                  style={{ display: 'none' }}
-                />
+    <div className="main-content manage-profile-shell">
+      <div className="profile-wrapper profile-overview">
+        <div className="profile-layout-grid">
+          <aside className="profile-summary-card">
+            <div className="summary-avatar">
+              {user.profilePic ? (
+                <img src={user.profilePic} alt="Profile" />
+              ) : (
+                <div className="avatar-placeholder-large">
+                  {user.firstName?.charAt(0) || user.lastName?.charAt(0) || 'S'}
+                </div>
+              )}
+            </div>
+
+            <div className="summary-details">
+              <h2>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</h2>
+              <p className="summary-role">{user.occupation || 'Independent Specialist'}</p>
+              <p className="summary-location">{formatAddress(user.address)}</p>
+            </div>
+
+            <div className="summary-rating-row">
+              <div>
+                <span className="rating-value">
+                  {reviewStats.averageRating ? reviewStats.averageRating.toFixed(1) : '0.0'}
+                </span>
+                <span className="rating-label">/ 5 rating</span>
               </div>
-              <div className="profile-info">
-                <h3>{user.firstName} {user.lastName}</h3>
-                <p>{user.occupation}</p>
-              </div>
-              <div className="form-group form-group-center">
-                <button
-                  type="submit"
-                  className="btn-primary btn-save"
-                >
-                  {saving ? 'Saving...' : 'Save Profile'}
-                </button>
+              <div className="rating-meta">
+                <span>{reviewStats.totalReviews || 0} Reviews</span>
+                <span>{user.bookings?.length || 0} Jobs</span>
               </div>
             </div>
-          </div>
-          <div className="form-sections">
-            <div className="form-section">
-              <h2 className="section-title">Personal Information</h2>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Address
-                  </label>
-                  <textarea
-                    id="address"
-                    name="address"
-                    rows={3}
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-textarea"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Birth Date
-                  </label>
-                  <input
-                    type="date"
-                    id="birthdate"
-                    name="birthdate"
-                    value={formData.birthdate}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Occupation
-                  </label>
-                  <input
-                    type="text"
-                    id="occupation"
-                    name="occupation"
-                    value={formData.occupation}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Software Developer, Electrician, etc."
-                    disabled
-                    className="form-input"
-                  />
-                </div>
+
+            <div className="summary-info-grid">
+              <div className="info-line">
+                <span>Email</span>
+                <strong>{maskEmail(user.email)}</strong>
+              </div>
+              <div className="info-line">
+                <span>Phone</span>
+                <strong>{maskPhone(user.phone)}</strong>
+              </div>
+              <div className="info-line">
+                <span>Skills</span>
+                <strong>{displaySkills}</strong>
+              </div>
+              <div className="info-line">
+                <span>Services</span>
+                <strong>{user.services?.length ? `${user.services.length} Listed` : 'Not set'}</strong>
               </div>
             </div>
-            <div className="form-section">
-              <h2 className="section-title">Contact Information</h2>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label className="form-label">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    disabled
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">
-                    Other Contact
-                  </label>
-                  <input
-                    type="text"
-                    id="otherContact"
-                    name="otherContact"
-                    value={formData.otherContact}
-                    onChange={handleInputChange}
-                    placeholder="Alternative phone or contact method"
-                    disabled
-                    className="form-input"
-                  />
-                </div>
+
+            <blockquote className="profile-quote">{bioText}</blockquote>
+
+            <p className="privacy-note">
+              *If the individual user views the skilled user their email and phone number will be hidden
+              <br />
+              ex: ju****@gmail.com, 09*****65
+            </p>
+
+            <button
+              type="button"
+              className="btn-outline profile-edit-btn"
+              onClick={() => navigate('/user/general-settings')}
+            >
+              Edit Profile
+            </button>
+          </aside>
+
+          <section className="profile-reviews-panel">
+            <div className="reviews-header">
+              <div>
+                <p className="eyebrow-text">Performance Snapshot</p>
+                <h1 className="page-title">All Reviews</h1>
+              </div>
+              <div className="reviews-header-meta">
+                <span>{reviewStats.averageRating ? reviewStats.averageRating.toFixed(1) : '0.0'} ★</span>
+                <span>{reviewStats.totalReviews || 0} total reviews</span>
               </div>
             </div>
-            <div className="form-section">
-              <h2 className="section-title">Documents</h2>
-              <div className="form-group">
-                <label className="form-label">
-                  Valid ID
-                </label>
-                {user.validId && (
-                  <div className="document-preview">
-                    <p>Current ID:</p>
-                    <img src={user.validId} alt="Valid ID" className="document-image" />
-                  </div>
-                )}
-                
+
+            {error && <div className="error-message">{error}</div>}
+
+            {reviewsLoading ? (
+              <div className="reviews-loading">Loading feedback…</div>
+            ) : reviews.length === 0 ? (
+              <div className="reviews-empty">
+                <p>No reviews yet</p>
+                <small>Completed jobs will automatically appear here when clients leave feedback.</small>
               </div>
-              <div className="form-group">
-                <label className="form-label">
-                  Certificates
-                </label>
-                {user.certificates && user.certificates.length > 0 && (
-                  <div className="document-preview">
-                    <p>Current Certificates:</p>
-                    <div className="certificate-grid">
-                      {user.certificates.map((cert, index) => (
-                        cert.endsWith('.pdf') ? (
-                          <iframe
-                            key={index}
-                            src={cert}
-                            width="100%"
-                            height="200"
-                            title={`Certificate ${index + 1}`}
-                          />
-                        ) : (
-                          <img key={index} src={cert} alt={`Certificate ${index + 1}`} className="document-image" />
-                        )
-                      ))}
+            ) : (
+              <div className="reviews-stack">
+                {reviews.map((review) => (
+                  <article className="review-card" key={review.id}>
+                    <header className="review-card-header">
+                      <div>
+                        <p className="review-type">Client Review</p>
+                        <h3>{review.clientName || 'Anonymous Client'}</h3>
+                        <p className="review-service-label">
+                          Service Needed:&nbsp;
+                          <span>{review.service || 'Service Request'}</span>
+                        </p>
+                      </div>
+                      <span className="review-date">{formatDate(review.createdAt)}</span>
+                    </header>
+
+                    <div className="review-comment">
+                      <span>Comment:</span> {review.comment || 'No comment was provided.'}
                     </div>
-                  </div>
-                )}
-                
+
+                    <div className="review-proof">
+                      <span>Proof Work:</span>
+                      <div className="proof-grid">
+                        {(review.images?.length ? review.images : placeholderProofs).map((img, idx) =>
+                          img ? (
+                            <img src={img} alt={`Proof ${idx + 1}`} key={idx} />
+                          ) : (
+                            <div className="proof-placeholder" key={idx} aria-hidden="true" />
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="review-rating-row">
+                      <span>Rating:</span>
+                      <div className="stars-row">
+                        {renderStars(review.rating)}
+                        <strong>{review.rating?.toFixed(1) || '0.0'}</strong>
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
-            </div>
-            
-          </div>
-        </form>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
 };
+
 export default ManageProfile;

@@ -47,13 +47,19 @@ const Login = () => {
       setUser(storedUser);
       setIsAuthorized(true);
       setTokenType(type);
-      setIsUserVerified(storedUser.role == "Service Provider"|| false);
+      setIsUserVerified(storedUser.role === "Service Provider" || false);
       updateSocketToken(storedToken);
 
-      if (storedUser.role == "Service Provider") {
-        navigate("/user/my-service");
+      // Navigate based on user role (for stored session check)
+      // Service Provider → /user/my-service
+      // Community Member and Service Provider Applicant → /user/service-request
+      if (storedUser.role === "Service Provider") {
+        navigate("/user/my-service", { replace: true });
+        localStorage.setItem("userLastPath", "/user/my-service");
       } else {
-        navigate("/user/request-service");
+        // Community Member or Service Provider Applicant
+        navigate("/user/service-request", { replace: true });
+        localStorage.setItem("userLastPath", "/user/service-request");
       }
     }
   }, [navigate, setUser, setIsAuthorized, setTokenType, setIsUserVerified]);
@@ -118,10 +124,16 @@ const Login = () => {
       setFormData({ email: "", password: "" });
       setErrors({});
 
-      if (data.user.isVerified) {
-        navigate("/user/my-service");
+      // Navigate based on user role (ignore last path on fresh login)
+      // Service Provider → /user/my-service
+      // Community Member and Service Provider Applicant → /user/service-request
+      if (data.user.role === "Service Provider") {
+        navigate("/user/my-service", { replace: true });
+        localStorage.setItem("userLastPath", "/user/my-service");
       } else {
-        navigate("/user/request-service");
+        // Community Member or Service Provider Applicant
+        navigate("/user/service-request", { replace: true });
+        localStorage.setItem("userLastPath", "/user/service-request");
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Login failed. Please try again.";

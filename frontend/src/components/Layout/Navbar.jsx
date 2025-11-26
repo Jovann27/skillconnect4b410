@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { useMainContext } from "../../mainContext";
@@ -191,6 +191,73 @@ const Navbar = () => {
     });
   };
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        setShow(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const originalOverflow = document.body.style.overflow;
+
+    if (show) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = originalOverflow;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [show]);
+
+  const userFullName = useMemo(() => {
+    if (!user) return "";
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  }, [user]);
+
+  const avatarUrl = useMemo(() => {
+    if (user?.profilePic) return user.profilePic;
+    if (!userFullName) return "https://ui-avatars.com/api/?background=FC60AE&color=fff&name=User";
+    const encoded = encodeURIComponent(userFullName);
+    return `https://ui-avatars.com/api/?background=FC60AE&color=fff&name=${encoded}`;
+  }, [user?.profilePic, userFullName]);
+
+  const dropdownQuickLinks = useMemo(() => ([
+    {
+      to: "/user/manage-profile",
+      icon: <FaUser />,
+      label: "Profile",
+      helper: "Profile, identity & verification"
+    },
+    {
+      to: "/user/service-request",
+      icon: <FaCartPlus />,
+      label: "Request Service",
+      helper: "Create or track service requests"
+    },
+    {
+      to: "/user/records",
+      icon: <FaFileAlt />,
+      label: "My Records",
+      helper: "Invoices, receipts & history"
+    },
+    {
+      to: "/user/general-settings",
+      icon: <IoSettingsOutline />,
+      label: "General Settings",
+      helper: "Preferences & notifications"
+    }
+  ]), []);
+
   return (
     <nav className="navbar" role="navigation" aria-label="Main navigation">
       <div className="navbar-container">
@@ -203,7 +270,36 @@ const Navbar = () => {
           <span className="navbar-logo-text">SkillConnect4B410</span>
         </Link>
 
-        <div className={`navbar-menu ${show ? 'mobile-menu show' : ''}`}>
+        {show && (
+          <div
+            className="navbar-backdrop"
+            onClick={() => {
+              setShow(false);
+            }}
+          />
+        )}
+
+        <div className={`navbar-menu ${show ? 'mobile-menu show' : ''}`} id="navigation-menu">
+          {show && (
+            <div className="mobile-menu-header">
+              <Link to="/home" className="navbar-logo" onClick={() => setShow(false)}>
+                <img
+                  src="https://i.ibb.co/MxKr7FVx/1000205778-removebg-preview.png"
+                  alt="SkillConnect4B410 logo"
+                  className="navbar-logo-image"
+                />
+                <span className="navbar-logo-text">SkillConnect4B410</span>
+              </Link>
+              <button
+                type="button"
+                className="mobile-menu-close"
+                onClick={() => setShow(false)}
+                aria-label="Close menu"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <ul className="navbar-menu-list">
             {!isAuthorized && (
               <>
@@ -237,14 +333,20 @@ const Navbar = () => {
             )}
 
 
-            {isAuthorized && tokenType !== 'admin' && (<li role="none">
-              <button onClick={toggleNotifications} className="navbar-icon-btn" aria-label="View notifications">
-                <IoNotificationsOutline size={24} />
-                {unreadCount > 0 && (
-                  <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-                )}
-              </button>
-            </li>
+            {isAuthorized && tokenType !== 'admin' && (
+              <li role="none">
+                <button
+                  type="button"
+                  onClick={toggleNotifications}
+                  className="navbar-icon-btn"
+                  aria-label="View notifications"
+                >
+                  <IoNotificationsOutline size={24} />
+                  {unreadCount > 0 && (
+                    <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  )}
+                </button>
+              </li>
             )}
 
 
@@ -266,6 +368,7 @@ const Navbar = () => {
               <li role="none" className="dropdown">
 
                 <button
+                  type="button"
                   className="dashboard-toggle"
                   onClick={() => setDashboardDropdown(!dashboardDropdown)}
                   aria-label="User dashboard menu"
@@ -274,37 +377,51 @@ const Navbar = () => {
                   <FaUser size={24} />
                 </button>
                 {dashboardDropdown && (
-                  <ul className="dropdown-menu">
-                    {/* Profile section */}
+                  <ul className="dropdown-menu" role="menu">
                     <li className="dropdown-profile">
-                      <Link to="/user/manage-profile" style={{ display: 'flex', alignItems: 'center', width: '100%', textDecoration: 'none' }}>
-                        <img src={user.profilePic} alt="User" />
+                      <Link to="/user/manage-profile" className="dropdown-profile-link">
+                        <img src={avatarUrl} alt="User avatar" />
                         <div className="dropdown-profile-info">
-                          <strong>{user.firstName} {user.lastName}</strong>
-                          <small>{user.role}</small>
+                          <strong>{userFullName || "SkillConnect User"}</strong>
+                          <small>{user?.role || "Member"}</small>
                         </div>
                       </Link>
                     </li>
 
-                    <li>
-                      <Link to="/user/manage-profile">
-                        <FaUser />Manage Profile
-                      </Link>
+                    <li className="dropdown-grid" role="presentation">
+                      {dropdownQuickLinks.map(({ to, icon, label, helper }) => (
+                        <Link
+                          key={label}
+                          to={to}
+                          className="dropdown-action"
+                          onClick={() => setDashboardDropdown(false)}
+                        >
+                          <span className="dropdown-action-icon">{icon}</span>
+                          <div>
+                            <p>{label}</p>
+                            <small>{helper}</small>
+                          </div>
+                        </Link>
+                      ))}
+                      {user?.role === "Service Provider" && (
+                        <Link
+                          to="/user/my-service"
+                          className="dropdown-action"
+                          onClick={() => setDashboardDropdown(false)}
+                        >
+                          <span className="dropdown-action-icon"><FaSuitcase /></span>
+                          <div>
+                            <p>My Service Desk</p>
+                            <small>Manage published services</small>
+                          </div>
+                        </Link>
+                      )}
                     </li>
-                    {user?.role === "Service Provider" && (
-                      <li>
-                        
-                      </li>
-                    )}
-                    <li><Link to="/user/service-request"><FaCartPlus />Request Service</Link></li>
-                    <li><Link to="/user/records"><FaFileAlt/>My Records</Link></li>
-                    <li><Link to="/user/general-settings"><IoSettingsOutline />General Settings </Link></li>
-
-                    <div className="dropdown-divider"></div>
 
                     <li className="logout-item">
-                      <button onClick={handleLogout}>
-                        <FaSignOutAlt />Log Out
+                      <button type="button" onClick={handleLogout}>
+                        <FaSignOutAlt />
+                        Log Out
                       </button>
                     </li>
                   </ul>
@@ -317,6 +434,7 @@ const Navbar = () => {
 
         {/* Hamburger Menu */}
         <button
+          type="button"
           className="hamburger"
           onClick={() => setShow(!show)}
           aria-label={show ? "Close navigation menu" : "Open navigation menu"}

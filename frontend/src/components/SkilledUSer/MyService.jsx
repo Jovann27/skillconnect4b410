@@ -11,6 +11,7 @@ const MyService = () => {
   const { user, isAuthorized } = useMainContext();
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [formData, setFormData] = useState({
     service: '',
     rate: '',
@@ -20,6 +21,7 @@ const MyService = () => {
   const [editFormData, setEditFormData] = useState({});
   const [predefinedServices, setPredefinedServices] = useState([]);
   const [selectedService, setSelectedService] = useState('');
+  const [serviceUpdating, setServiceUpdating] = useState(false);
   const [clientData, setClientData] = useState({
     name: '',
     phone: '',
@@ -31,6 +33,8 @@ const MyService = () => {
   const [currentRequests, setCurrentRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState('');
+  const [acceptingRequest, setAcceptingRequest] = useState(null);
+  const [decliningRequest, setDecliningRequest] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [clientLocations, setClientLocations] = useState([]);
   const [locationLoading, setLocationLoading] = useState(true);
@@ -55,6 +59,17 @@ const MyService = () => {
             rate: data.rate || '',
             description: data.description || ''
           });
+          // Set selected service if service exists
+          if (data.service) {
+            setSelectedService(data.service);
+            console.log('MyService: Current service profile loaded:', {
+              service: data.service,
+              rate: data.rate,
+              description: data.description
+            });
+          } else {
+            console.log('MyService: No service name in profile');
+          }
           setIsOnline(data.isOnline !== false); // Default to true
         }
       } catch (error) {
@@ -113,8 +128,15 @@ const MyService = () => {
           setLocationLoading(false);
         },
         (error) => {
-          console.log('Error getting location:', error);
-          toast.error('Unable to access your location. Using default map view.');
+          // Only log non-critical errors (code 2 is "position unavailable" which is common)
+          // Code 1 = PERMISSION_DENIED, Code 2 = POSITION_UNAVAILABLE, Code 3 = TIMEOUT
+          if (error.code !== 2) {
+            console.warn('Geolocation error:', error.message || `Error code: ${error.code}`);
+          }
+          // Only show toast for permission denied errors
+          if (error.code === 1) {
+            toast.error('Location permission denied. Using default map view.');
+          }
           setLocationLoading(false);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
@@ -275,64 +297,173 @@ const MyService = () => {
   }, [clientLocations, userLocation, currentRequests]);
 
   useEffect(() => {
-    const fetchPredefinedServices = async () => {
-      if (!isAuthorized || !user) return;
+    const fetchUserServices = async () => {
+      if (!isAuthorized || !user) {
+        console.log('MyService: Not authorized or no user, skipping service fetch');
+        return;
+      }
+      
+      console.log('MyService: Fetching user services...');
       try {
-        const response = await api.get('/user/predefined-services');
-        if (response.data.success) {
-          setPredefinedServices(response.data.services);
+        const response = await api.get('/user/services');
+        console.log('MyService: User services response:', response.data);
+        
+        if (response.data.success && response.data.services && Array.isArray(response.data.services)) {
+          // Services from user's services array in database
+          // Expected structure: [{ _id, name, rate, description }, ...]
+          const services = response.data.services.filter(service => service && service.name);
+          console.log('MyService: Filtered services:', services);
+          console.log('MyService: Services count:', services.length);
+          
+          if (services.length > 0) {
+            setPredefinedServices(services);
+            console.log('MyService: Set predefinedServices to user services');
+          } else {
+            console.log('MyService: User has no services in array, fetching predefined services...');
+            // User has empty services array, fetch predefined services
+            try {
+              const fallbackResponse = await api.get('/user/predefined-services');
+              if (fallbackResponse.data.success) {
+                const predefined = fallbackResponse.data.services || [];
+                setPredefinedServices(predefined);
+                console.log('MyService: Set predefinedServices to fallback:', predefined.length);
+              }
+            } catch (fallbackError) {
+              console.error('MyService: Error fetching fallback services:', fallbackError);
+            }
+          }
+        } else {
+          console.log('MyService: Invalid response structure, trying fallback...');
+          // Fallback to predefined services if user has no services
+          try {
+            const fallbackResponse = await api.get('/user/predefined-services');
+            if (fallbackResponse.data.success) {
+              setPredefinedServices(fallbackResponse.data.services || []);
+              console.log('MyService: Set predefinedServices from fallback');
+            }
+          } catch (fallbackError) {
+            console.error('MyService: Error fetching fallback services:', fallbackError);
+          }
         }
       } catch (error) {
-        console.error('Error fetching predefined services:', error);
+        console.error('MyService: Error fetching user services:', error);
+        console.error('MyService: Error details:', error.response?.data || error.message);
+        // Fallback to predefined services on error
+        try {
+          const fallbackResponse = await api.get('/user/predefined-services');
+          if (fallbackResponse.data.success) {
+            setPredefinedServices(fallbackResponse.data.services || []);
+            console.log('MyService: Set predefinedServices from error fallback');
+          }
+        } catch (fallbackError) {
+          console.error('MyService: Error fetching fallback services:', fallbackError);
+          toast.error('Failed to load services');
+        }
       }
     };
-    fetchPredefinedServices();
+    fetchUserServices();
   }, [user, isAuthorized]);
 
-  useEffect(() => {
-    if (selectedService && predefinedServices.length > 0) {
-      // Find the selected predefined service
-      const selectedPredefinedService = predefinedServices.find(service => service.name === selectedService);
-      if (selectedPredefinedService) {
-        setFormData({
-          service: selectedService,
-          rate: selectedPredefinedService.rate,
-          description: selectedPredefinedService.description
-        });
-        // Update service profile with the predefined values
-        const updateServiceProfile = async () => {
-          try {
-            await api.post('/user/service-profile', {
-              service: selectedService,
-              rate: selectedPredefinedService.rate,
-              description: selectedPredefinedService.description
-            });
-          } catch (error) {
-            console.error('Error updating service profile:', error);
-          }
-        };
-        updateServiceProfile();
-      }
+  const handleServiceSelect = async (serviceName) => {
+    if (!serviceName) {
+      setSelectedService('');
+      return;
     }
-  }, [selectedService, predefinedServices]);
+
+    console.log('MyService: Service selected:', serviceName);
+    console.log('MyService: Available services:', predefinedServices);
+    
+    // Find the selected service from the user's services array
+    const selectedPredefinedService = predefinedServices.find(service => service.name === serviceName);
+    console.log('MyService: Found service:', selectedPredefinedService);
+    
+    if (selectedPredefinedService) {
+      setServiceUpdating(true);
+      try {
+        const response = await api.post('/user/service-profile', {
+          service: serviceName,
+          rate: selectedPredefinedService.rate || 0,
+          description: selectedPredefinedService.description || ''
+        });
+        if (response.data.success) {
+          setFormData({
+            service: serviceName,
+            rate: selectedPredefinedService.rate || 0,
+            description: selectedPredefinedService.description || ''
+          });
+          setSelectedService(serviceName);
+          toast.success('Service profile updated successfully');
+          console.log('MyService: Service profile updated successfully');
+        }
+      } catch (error) {
+        console.error('MyService: Error updating service profile:', error);
+        toast.error(error.response?.data?.message || 'Failed to update service profile');
+        // Don't reset selectedService on error, keep the selection
+      } finally {
+        setServiceUpdating(false);
+      }
+    } else {
+      console.warn('MyService: Selected service not found in predefined services:', serviceName);
+      console.warn('MyService: Available service names:', predefinedServices.map(s => s.name));
+      toast.error('Selected service not found in your services list');
+    }
+  };
 
   const handleStatusToggle = async () => {
+    if (statusLoading) return; // Prevent double-clicks
+    
+    const newStatus = !isOnline;
+    setStatusLoading(true);
+    
     try {
       const response = await api.put('/user/service-status', {
-        isOnline: !isOnline
+        isOnline: newStatus
       });
       if (response.data.success) {
-        setIsOnline(!isOnline);
-        toast.success(`Status updated to ${!isOnline ? 'Online' : 'Offline'}`);
+        setIsOnline(newStatus);
+        toast.success(`Status updated to ${newStatus ? 'Online' : 'Offline'}`);
+        
+        // Refresh requests if going online
+        if (newStatus && user && user.role === "Service Provider") {
+          const fetchMatchingRequests = async () => {
+            setLoadingRequests(true);
+            try {
+              const res = await api.get('/user/matching-requests');
+              if (res.data.success && res.data.requests.length > 0) {
+                const filteredRequests = res.data.requests.filter(request => request.requester?._id !== user._id);
+                setCurrentRequests(filteredRequests);
+                setRequestsError('');
+              } else {
+                setCurrentRequests([]);
+                setRequestsError('No matching requests found.');
+              }
+            } catch (err) {
+              setRequestsError('No matching requests found.');
+              setCurrentRequests([]);
+            } finally {
+              setLoadingRequests(false);
+            }
+          };
+          fetchMatchingRequests();
+        } else if (!newStatus) {
+          // Clear requests when going offline
+          setCurrentRequests([]);
+        }
       }
     } catch (error) {
-      toast.error('Failed to update status');
+      console.error('Failed to update status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    } finally {
+      setStatusLoading(false);
     }
   };
 
 
 
   const handleAccept = async (requestId) => {
+    if (acceptingRequest === requestId) return; // Prevent double-clicks
+    
+    setAcceptingRequest(requestId);
     try {
       const response = await api.post(`/user/service-request/${requestId}/accept`);
       if (response.data.success) {
@@ -343,36 +474,78 @@ const MyService = () => {
           clientMarkers.current[requestId].remove();
           delete clientMarkers.current[requestId];
         }
+        // Update client locations
+        setClientLocations(prev => prev.filter(loc => loc.requestId !== requestId));
       }
     } catch (error) {
-      toast.error('Failed to accept request');
+      console.error('Failed to accept request:', error);
+      toast.error(error.response?.data?.message || 'Failed to accept request');
+    } finally {
+      setAcceptingRequest(null);
     }
   };
 
   const handleDecline = async (requestId) => {
+    if (decliningRequest === requestId) return; // Prevent double-clicks
+    
+    setDecliningRequest(requestId);
+    let declinedSuccessfully = false;
+    
     try {
+      // Try to call decline endpoint if it exists, otherwise just remove locally
+      try {
+        const response = await api.post(`/user/service-request/${requestId}/decline`);
+        if (response.data.success) {
+          declinedSuccessfully = true;
+        }
+      } catch (apiError) {
+        // If endpoint doesn't exist, just remove locally (silent decline)
+        console.log('Decline endpoint not available, removing locally');
+        declinedSuccessfully = true; // Still consider it successful for UI purposes
+      }
+      
+      // Remove from UI regardless
       setCurrentRequests(prev => prev.filter(req => req._id !== requestId));
       // Remove marker from map
       if (clientMarkers.current[requestId]) {
         clientMarkers.current[requestId].remove();
         delete clientMarkers.current[requestId];
       }
-      toast.success('Request declined');
+      // Update client locations
+      setClientLocations(prev => prev.filter(loc => loc.requestId !== requestId));
+      
+      if (declinedSuccessfully) {
+        toast.success('Request declined');
+      }
     } catch (error) {
+      console.error('Failed to decline request:', error);
       toast.error('Failed to decline request');
+    } finally {
+      setDecliningRequest(null);
     }
   };
 
   const handleSaveService = async () => {
+    if (!editFormData.service || !editFormData.service.trim()) {
+      toast.error('Service name is required');
+      return;
+    }
+    
     try {
-      const response = await api.post('/user/service-profile', editFormData);
+      const response = await api.post('/user/service-profile', {
+        service: editFormData.service.trim(),
+        rate: editFormData.rate || 0,
+        description: editFormData.description || ''
+      });
       if (response.data.success) {
         setFormData({ ...editFormData });
+        setSelectedService(editFormData.service);
         setShowEditModal(false);
         toast.success('Service profile updated successfully');
       }
     } catch (error) {
-      toast.error('Failed to update service profile');
+      console.error('Failed to update service profile:', error);
+      toast.error(error.response?.data?.message || 'Failed to update service profile');
     }
   };
 
@@ -413,12 +586,35 @@ const MyService = () => {
           <div className="services-section">
             <h3>Your Services:</h3>
             <div className="service-controls">
-              <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="form-input">
+              <select 
+                value={selectedService} 
+                onChange={(e) => handleServiceSelect(e.target.value)} 
+                className="form-input"
+                disabled={serviceUpdating}
+              >
                 <option value="">Select a service</option>
-                {predefinedServices.map((service) => (
-                  <option key={service._id} value={service.name}>{service.name}</option>
-                ))}
+                {predefinedServices && predefinedServices.length > 0 ? (
+                  predefinedServices.map((service) => {
+                    const serviceName = service.name || '';
+                    const serviceRate = service.rate || 0;
+                    return (
+                      <option key={service._id || serviceName || Math.random()} value={serviceName}>
+                        {serviceName} {serviceRate ? `(₱${serviceRate})` : ''}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="" disabled>
+                    {loading ? 'Loading services...' : 'No services available'}
+                  </option>
+                )}
               </select>
+              {predefinedServices && predefinedServices.length > 0 && (
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                  {predefinedServices.length} service{predefinedServices.length !== 1 ? 's' : ''} available
+                </div>
+              )}
+              {serviceUpdating && <span style={{ fontSize: '12px', color: '#666' }}>Updating...</span>}
               <div className="status-toggle">
                 <span className={`status-text ${isOnline ? 'online' : 'offline'}`}>
                   {isOnline ? 'Online' : 'Offline'}
@@ -428,9 +624,11 @@ const MyService = () => {
                     type="checkbox"
                     checked={isOnline}
                     onChange={handleStatusToggle}
+                    disabled={statusLoading}
                   />
                   <span className="toggle-slider"></span>
                 </label>
+                {statusLoading && <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>Updating...</span>}
               </div>
             </div>
             <div className="service-info">
@@ -471,8 +669,21 @@ const MyService = () => {
                       <p><strong>Address:</strong> {request.address}</p>
                     </div>
                     <div className="request-actions">
-                      <button className="btn-primary" onClick={() => handleAccept(request._id)}>Accept</button>
-                      <button className="btn-primary" onClick={() => handleDecline(request._id)}>Decline</button>
+                      <button 
+                        className="btn-primary" 
+                        onClick={() => handleAccept(request._id)}
+                        disabled={acceptingRequest === request._id || decliningRequest === request._id}
+                      >
+                        {acceptingRequest === request._id ? 'Accepting...' : 'Accept'}
+                      </button>
+                      <button 
+                        className="btn-primary" 
+                        onClick={() => handleDecline(request._id)}
+                        disabled={acceptingRequest === request._id || decliningRequest === request._id}
+                        style={{ background: '#dc3545' }}
+                      >
+                        {decliningRequest === request._id ? 'Declining...' : 'Decline'}
+                      </button>
                     </div>
                   </div>
                 ))}

@@ -194,31 +194,80 @@ const SystemAnalytics = () => {
         api.get(`/reports/totals-over-time?months=${timeRange}`)
       ]);
 
-      const totalBookings = Object.values(mostBookedRes.data).reduce((a, b) => a + b, 0);
-      const popularServices = Object.entries(mostBookedRes.data)
-        .map(([service, count]) => ({ service, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+      // Extract data from response (backend returns { success: true, data: {...} })
+      const totalsData = totalsRes.data?.data || totalsRes.data || {};
+      const demographicsData = demographicsRes.data?.data || demographicsRes.data || {};
+      const skillsData = skillsRes.data?.data || skillsRes.data || {};
+      const skilledPerTradeData = skilledPerTradeRes.data?.data || skilledPerTradeRes.data || {};
+      const mostBookedData = mostBookedRes.data?.data || mostBookedRes.data || {};
+      const totalsOverTimeData = totalsOverTimeRes.data?.data || totalsOverTimeRes.data || { labels: [], values: [] };
+
+      // Ensure totalBookings is always a number
+      const totalBookings = typeof mostBookedData === 'object' && mostBookedData !== null
+        ? Object.values(mostBookedData)
+            .filter(val => typeof val === 'number')
+            .reduce((a, b) => a + b, 0)
+        : 0;
+      
+      const popularServices = typeof mostBookedData === 'object' && mostBookedData !== null
+        ? Object.entries(mostBookedData)
+            .filter(([service, count]) => typeof count === 'number')
+            .map(([service, count]) => ({ service, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10)
+        : [];
 
       setAnalyticsData({
-        totals: totalsRes.data,
-        demographics: demographicsRes.data,
-        skills: skillsRes.data,
-        skilledPerTrade: skilledPerTradeRes.data,
-        mostBookedServices: mostBookedRes.data,
-        totalsOverTime: totalsOverTimeRes.data,
+        totals: totalsData,
+        demographics: demographicsData,
+        skills: skillsData,
+        skilledPerTrade: skilledPerTradeData,
+        mostBookedServices: mostBookedData,
+        totalsOverTime: totalsOverTimeData,
 
         // Calculated fields
-        activeUsers: Math.floor(totalsRes.data.totalUsers * 0.7), // Assume 70% active
-        totalBookings,
+        activeUsers: (() => {
+          const totalUsers = totalsData?.totalUsers;
+          if (typeof totalUsers === 'number' && !isNaN(totalUsers) && totalUsers > 0) {
+            return Math.floor(totalUsers * 0.7);
+          }
+          return 0;
+        })(), // Assume 70% active
+        totalBookings: (() => {
+          if (typeof totalBookings === 'number' && !isNaN(totalBookings)) {
+            return totalBookings;
+          }
+          return 0;
+        })(),
         popularServices
       });
 
       toast.success("Analytics data loaded successfully!");
     } catch (err) {
       console.error("Failed to fetch analytics data:", err);
-      setError("Failed to load analytics data");
-      toast.error("Failed to load analytics data");
+      
+      // Check for connection errors
+      const isConnectionError = err.code === 'ERR_NETWORK' || 
+                                err.message?.includes('Network Error') ||
+                                err.message?.includes('ERR_CONNECTION_REFUSED');
+      
+      if (isConnectionError) {
+        const errorMessage = "Cannot connect to the server. Please ensure the backend server is running and accessible.";
+        setError(errorMessage);
+        toast.error(errorMessage, { duration: 5000 });
+      } else if (err.response?.status === 401) {
+        const errorMessage = "Authentication required. Please log in again.";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else if (err.response?.status === 403) {
+        const errorMessage = "Access denied. You don't have permission to view analytics.";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else {
+        const errorMessage = err.response?.data?.message || err.message || "Failed to load analytics data";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -596,6 +645,17 @@ The following sections provide detailed analysis and visualizations of these met
           <div className="error-message">
             <h3>⚠️ Error Loading Data</h3>
             <p>{error}</p>
+            {error.includes("Cannot connect to the server") && (
+              <div className="connection-help">
+                <p><strong>Troubleshooting steps:</strong></p>
+                <ul>
+                  <li>Ensure the backend server is running on port 4000</li>
+                  <li>Check if the server address (192.168.1.3:4000) is correct</li>
+                  <li>Verify your network connection</li>
+                  <li>Check if the API base URL in your environment variables is correct</li>
+                </ul>
+              </div>
+            )}
             <button onClick={fetchAnalyticsData} className="retry-btn">
               <FaSync /> Retry
             </button>
@@ -662,24 +722,6 @@ The following sections provide detailed analysis and visualizations of these met
     }]
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          precision: 0
-        }
-      }
-    }
-  };
-
   return (
     <div className="analytics-container">
       <div className="analytics-header">
@@ -715,7 +757,7 @@ The following sections provide detailed analysis and visualizations of these met
               <FaUsers />
             </div>
             <h3 className="metric-title">Total Users</h3>
-            <p className="metric-value">{analyticsData.totals.totalUsers?.toLocaleString() || 0}</p>
+            <p className="metric-value">{typeof analyticsData.totals?.totalUsers === 'number' ? analyticsData.totals.totalUsers.toLocaleString() : 0}</p>
             <div className="metric-description">Registered platform users</div>
           </div>
 
@@ -724,7 +766,7 @@ The following sections provide detailed analysis and visualizations of these met
               <FaTools />
             </div>
             <h3 className="metric-title">Service Providers</h3>
-            <p className="metric-value">{analyticsData.totals.serviceProviders?.toLocaleString() || 0}</p>
+            <p className="metric-value">{typeof analyticsData.totals?.serviceProviders === 'number' ? analyticsData.totals.serviceProviders.toLocaleString() : 0}</p>
             <div className="metric-description">Active service providers</div>
           </div>
 
@@ -733,7 +775,7 @@ The following sections provide detailed analysis and visualizations of these met
               <FaChartBar />
             </div>
             <h3 className="metric-title">Total Bookings</h3>
-            <p className="metric-value">{analyticsData.totalBookings.toLocaleString()}</p>
+            <p className="metric-value">{typeof analyticsData.totalBookings === 'number' ? analyticsData.totalBookings.toLocaleString() : 0}</p>
             <div className="metric-description">Completed service bookings</div>
           </div>
 
@@ -742,7 +784,7 @@ The following sections provide detailed analysis and visualizations of these met
               <FaCalendarAlt />
             </div>
             <h3 className="metric-title">Active Users</h3>
-            <p className="metric-value">{analyticsData.activeUsers.toLocaleString()}</p>
+            <p className="metric-value">{typeof analyticsData.activeUsers === 'number' ? analyticsData.activeUsers.toLocaleString() : 0}</p>
             <div className="metric-description">~70% of total users</div>
           </div>
         </div>
@@ -754,19 +796,30 @@ The following sections provide detailed analysis and visualizations of these met
           <h2>📈 User Registration Trends</h2>
           <div className="card-subinfo">Monthly user growth over time</div>
         </div>
-        <div className="chart-container" ref={userGrowthChartRef}>
+        <div className="chart-container user-growth-chart" ref={userGrowthChartRef}>
           <Line
             data={userGrowthChartData}
             options={{
-              ...chartOptions,
+              responsive: true,
+              maintainAspectRatio: true,
+              aspectRatio: 2.5,
               plugins: {
-                ...chartOptions.plugins,
+                legend: {
+                  position: 'top',
+                },
                 title: {
                   display: false,
                 },
               },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    precision: 0
+                  }
+                }
+              }
             }}
-            height={300}
           />
         </div>
       </div>
@@ -779,26 +832,51 @@ The following sections provide detailed analysis and visualizations of these met
         <div className="charts-grid">
           <div className="chart-item">
             <h4>Age Distribution</h4>
-            <div className="chart-wrapper" ref={ageGroupsChartRef}>
+            <div className="chart-wrapper age-distribution-chart" ref={ageGroupsChartRef}>
               <Bar
                 data={ageGroupsChartData}
                 options={{
-                  ...chartOptions,
-                  plugins: { legend: { display: false } }
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  aspectRatio: 2,
+                  plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.label}: ${context.parsed.y} users`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        precision: 0
+                      }
+                    },
+                    x: {
+                      ticks: {
+                        maxRotation: 0,
+                        minRotation: 0
+                      }
+                    }
+                  }
                 }}
-                height={180}
               />
               <div className="card-subinfo">Age distribution and employment status</div>
             </div>
           </div>
           <div className="chart-item">
             <h4>Employment Status</h4>
-            <div className="chart-wrapper" ref={employmentChartRef}>
+            <div className="chart-wrapper employment-chart" ref={employmentChartRef}>
               <Doughnut
                 data={employmentChartData}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: false,
+                  maintainAspectRatio: true,
+                  aspectRatio: 1.2,
                   plugins: {
                     legend: {
                       position: 'bottom',
@@ -822,17 +900,21 @@ The following sections provide detailed analysis and visualizations of these met
                   },
                   cutout: '65%'
                 }}
-                height={180}
               />
             </div>
             <div className="employment-summary">
               <div className="employment-rate">
                 <span className="rate-label">Employment Rate:</span>
                 <span className="rate-value">
-                  {analyticsData.demographics.employment?.worker && analyticsData.demographics.employment?.nonWorker
-                    ? Math.round((analyticsData.demographics.employment.worker /
-                        (analyticsData.demographics.employment.worker + analyticsData.demographics.employment.nonWorker)) * 100)
-                    : 0}%
+                  {(() => {
+                    const worker = analyticsData.demographics.employment?.worker || 0;
+                    const nonWorker = analyticsData.demographics.employment?.nonWorker || 0;
+                    const total = worker + nonWorker;
+                    if (total > 0) {
+                      return Math.round((worker / total) * 100);
+                    }
+                    return 0;
+                  })()}%
                 </span>
               </div>
             </div>
@@ -848,12 +930,13 @@ The following sections provide detailed analysis and visualizations of these met
         <div className="charts-grid">
           <div className="chart-item">
             <h4>Top Skills Distribution</h4>
-            <div className="chart-wrapper" ref={skillsChartRef}>
+            <div className="chart-wrapper skills-chart" ref={skillsChartRef}>
               <Doughnut
                 data={skillsChartData}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: false,
+                  maintainAspectRatio: true,
+                  aspectRatio: 1.5,
                   plugins: {
                     legend: {
                       position: 'right',
@@ -864,21 +947,36 @@ The following sections provide detailed analysis and visualizations of these met
                     }
                   }
                 }}
-                width={350}
-                height={350}
               />
               <div className="card-subinfo">Most demanded skills and popular services</div>
             </div>
           </div>
           <div className="chart-item">
             <h4>Popular Services</h4>
-            <div className="chart-wrapper" ref={servicesChartRef}>
+            <div className="chart-wrapper services-chart" ref={servicesChartRef}>
               <Bar
                 data={servicesChartData}
                 options={{
-                  ...chartOptions,
-                  plugins: { legend: { display: false } },
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  aspectRatio: 2,
+                  plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.label}: ${context.parsed.y} bookings`;
+                        }
+                      }
+                    }
+                  },
                   scales: {
+                    y: {
+                      beginAtZero: true,
+                      ticks: {
+                        precision: 0
+                      }
+                    },
                     x: {
                       ticks: {
                         maxRotation: 45,
@@ -887,7 +985,6 @@ The following sections provide detailed analysis and visualizations of these met
                     }
                   }
                 }}
-                height={300}
               />
             </div>
           </div>
@@ -900,7 +997,7 @@ The following sections provide detailed analysis and visualizations of these met
           <h2>🏢 Service Provider Network</h2>
           <div className="card-subinfo">Provider distribution by role and skills</div>
         </div>
-        <div className="chart-container" ref={providerChartRef}>
+        <div className="chart-container provider-chart" ref={providerChartRef}>
           <Bar
             data={{
               labels: Object.keys(analyticsData.skilledPerTrade.byRole || {}),
@@ -917,7 +1014,8 @@ The following sections provide detailed analysis and visualizations of these met
             }}
             options={{
               responsive: true,
-              maintainAspectRatio: false,
+              maintainAspectRatio: true,
+              aspectRatio: 2.5,
               plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -944,7 +1042,6 @@ The following sections provide detailed analysis and visualizations of these met
                 }
               }
             }}
-            height={300}
           />
         </div>
       </div>

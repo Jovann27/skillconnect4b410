@@ -1,5 +1,15 @@
 import { io } from "socket.io-client";
 
+// Socket.io should connect to the base server URL, not the API endpoint
+// Extract base URL from API_BASE_URL by removing /api/v1 if present
+const getSocketBaseURL = () => {
+  const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.3:4000/api/v1";
+  // Remove /api/v1 or /api from the end if present
+  return apiBaseURL.replace(/\/api\/v1$|\/api$/, '');
+};
+
+const SOCKET_BASE_URL = getSocketBaseURL();
+
 let _socket = null;
 let pendingListeners = [];
 
@@ -38,7 +48,7 @@ const initializeSocket = (token) => {
         return null;
     }
 
-    _socket = io("https://skillconnect4b410-backend.onrender.com/api/v1", {
+    _socket = io(SOCKET_BASE_URL, {
         withCredentials: true,
         auth: { token }
     });

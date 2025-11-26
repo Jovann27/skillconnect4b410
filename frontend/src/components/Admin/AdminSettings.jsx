@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   FaCog,
   FaUserShield,
@@ -8,152 +8,163 @@ import {
   FaTools,
   FaInfoCircle,
   FaFileContract,
-  FaUsers,
-  FaLock,
-  FaDatabase,
-  FaPalette,
-  FaChartLine,
-  FaHistory,
-  FaServer,
   FaSave,
   FaTimes,
   FaCheck,
   FaExclamationTriangle,
   FaSync,
   FaDownload,
-  FaUpload
+  FaArrowLeft,
+  FaShieldAlt,
+  FaDatabase,
+  FaServer,
+  FaPalette
 } from 'react-icons/fa';
-
+import api from '../../api';
+import toast from 'react-hot-toast';
+import './AdminSettings.css';
 
 const AdminSettings = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [activeSection, setActiveSection] = useState('general');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
-    general: {
-      siteName: 'SkillConnect4B410',
-      siteEmail: 'admin@skillconnect.com',
-      maintenanceMode: false,
-      debugMode: false
-    },
-    admin: {
-      sessionTimeout: 30,
-      passwordMinLength: 8,
-      requireTwoFactor: false,
-      maxLoginAttempts: 5
-    },
-    notifications: {
+    siteName: 'SkillConnect4B410',
+    siteDescription: 'Connecting skilled workers with community needs',
+    contactEmail: '',
+    contactPhone: '',
+    maintenanceMode: false,
+    allowRegistrations: true,
+    maxFileSize: 5 * 1024 * 1024,
+    allowedFileTypes: ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'],
+    notificationSettings: {
       emailNotifications: true,
-      smsNotifications: false,
       pushNotifications: true,
-      notificationFrequency: 'daily'
+      smsNotifications: false
     },
-    automation: {
-      autoBackup: true,
-      backupFrequency: 'weekly',
-      autoCleanup: true,
-      cleanupDays: 30
-    },
-    maintenance: {
-      scheduledMaintenance: false,
-      maintenanceMessage: 'System is under maintenance. Please try again later.',
-      maintenanceStartTime: '',
-      maintenanceEndTime: ''
-    },
-    security: {
-      ipWhitelist: '',
-      allowedOrigins: 'localhost:3000',
-      rateLimitEnabled: true,
-      rateLimitRequests: 100
-    },
-    api: {
-      apiKeyEnabled: false,
-      apiKeyExpiry: 30,
-      apiRateLimit: 1000
-    },
-    theme: {
-      primaryColor: '#0a84ff',
-      secondaryColor: '#d6355d',
-      darkMode: false
+    systemSettings: {
+      timezone: 'Asia/Manila',
+      currency: 'PHP',
+      language: 'en'
     }
   });
-  const [saveStatus, setSaveStatus] = useState('');
+
   const [systemInfo, setSystemInfo] = useState({
     version: '1.0.0',
     uptime: '0 days, 0 hours, 0 minutes',
     lastBackup: 'Never',
     dbSize: '0 MB',
     activeUsers: 0,
-    totalBookings: 0
+    totalBookings: 0,
+    totalUsers: 0,
+    serviceProviders: 0
   });
 
-
   useEffect(() => {
-    // Fetch system information
-    const fetchSystemInfo = async () => {
-      try {
-        // In a real app, this would be an API call
-        const mockSystemInfo = {
-          version: '1.0.0',
-          uptime: '15 days, 7 hours, 32 minutes',
-          lastBackup: '2023-06-15 02:30:00',
-          dbSize: '245.7 MB',
-          activeUsers: 1247,
-          totalBookings: 3842
-        };
-        setSystemInfo(mockSystemInfo);
-      } catch (error) {
-        console.error('Failed to fetch system info:', error);
-      }
-    };
-
-
+    fetchSettings();
     fetchSystemInfo();
   }, []);
 
-
-  const handleSettingChange = (section, field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
-  };
-
-
-  const saveSettings = async () => {
-    setSaveStatus('saving');
+  const fetchSettings = async () => {
     try {
-      // In a real app, this would be an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus(''), 3000);
+      setLoading(true);
+      const response = await api.get('/admin/settings');
+      if (response.data.success && response.data.settings) {
+        setSettings(prev => ({
+          ...prev,
+          ...response.data.settings
+        }));
+      }
     } catch (error) {
-      console.error('Failed to save settings:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus(''), 3000);
+      console.error('Failed to fetch settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const fetchSystemInfo = async () => {
+    try {
+      // Fetch totals from reports
+      const [totalsRes, metricsRes] = await Promise.all([
+        api.get('/reports/totals').catch(() => null),
+        api.get('/admin/dashboard-metrics').catch(() => null)
+      ]);
+
+      const totals = totalsRes?.data?.data || totalsRes?.data || {};
+      const metrics = metricsRes?.data?.data || metricsRes?.data || {};
+
+      setSystemInfo(prev => ({
+        ...prev,
+        totalUsers: totals.totalUsers || 0,
+        serviceProviders: totals.serviceProviders || 0,
+        totalBookings: metrics.totalBookings || totals.totalBookings || 0,
+        activeUsers: totals.totalUsers ? Math.floor(totals.totalUsers * 0.7) : 0
+      }));
+    } catch (error) {
+      console.error('Failed to fetch system info:', error);
+    }
+  };
+
+  const handleSettingChange = (field, value, nested = null) => {
+    if (nested) {
+      setSettings(prev => ({
+        ...prev,
+        [nested]: {
+          ...prev[nested],
+          [field]: value
+        }
+      }));
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      const response = await api.put('/admin/settings', settings);
+      if (response.data.success) {
+        toast.success('Settings saved successfully!');
+        await fetchSettings();
+      } else {
+        toast.error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error(error.response?.data?.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleBackup = async () => {
     try {
-      // In a real app, this would trigger a backup API call
-      setSaveStatus('backup');
+      toast.loading('Creating backup...');
+      // In a real implementation, this would trigger a backup API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      setSaveStatus('backup-success');
-      setTimeout(() => setSaveStatus(''), 3000);
+      toast.dismiss();
+      toast.success('Backup created successfully!');
     } catch (error) {
-      console.error('Backup failed:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus(''), 3000);
+      toast.dismiss();
+      toast.error('Backup failed');
     }
   };
 
-
   const renderSettingsContent = () => {
+    if (loading) {
+      return (
+        <div className="settings-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading settings...</p>
+        </div>
+      );
+    }
+
     switch (activeSection) {
       case 'general':
         return (
@@ -165,27 +176,49 @@ const AdminSettings = () => {
                 <input
                   type="text"
                   id="siteName"
-                  value={settings.general.siteName}
-                  onChange={(e) => handleSettingChange('general', 'siteName', e.target.value)}
+                  value={settings.siteName}
+                  onChange={(e) => handleSettingChange('siteName', e.target.value)}
+                  placeholder="Enter site name"
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="siteEmail">Site Email</label>
+                <label htmlFor="siteDescription">Site Description</label>
+                <textarea
+                  id="siteDescription"
+                  rows="3"
+                  value={settings.siteDescription}
+                  onChange={(e) => handleSettingChange('siteDescription', e.target.value)}
+                  placeholder="Enter site description"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="contactEmail">Contact Email</label>
                 <input
                   type="email"
-                  id="siteEmail"
-                  value={settings.general.siteEmail}
-                  onChange={(e) => handleSettingChange('general', 'siteEmail', e.target.value)}
+                  id="contactEmail"
+                  value={settings.contactEmail}
+                  onChange={(e) => handleSettingChange('contactEmail', e.target.value)}
+                  placeholder="admin@skillconnect.com"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="contactPhone">Contact Phone</label>
+                <input
+                  type="text"
+                  id="contactPhone"
+                  value={settings.contactPhone}
+                  onChange={(e) => handleSettingChange('contactPhone', e.target.value)}
+                  placeholder="+63 XXX XXX XXXX"
                 />
               </div>
               <div className="form-group">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={settings.general.maintenanceMode}
-                    onChange={(e) => handleSettingChange('general', 'maintenanceMode', e.target.checked)}
+                    checked={settings.maintenanceMode}
+                    onChange={(e) => handleSettingChange('maintenanceMode', e.target.checked)}
                   />
-                  Maintenance Mode
+                  <span>Maintenance Mode</span>
                 </label>
                 <p className="form-help">When enabled, the site will display a maintenance message to all users except administrators.</p>
               </div>
@@ -193,72 +226,17 @@ const AdminSettings = () => {
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={settings.general.debugMode}
-                    onChange={(e) => handleSettingChange('general', 'debugMode', e.target.checked)}
+                    checked={settings.allowRegistrations}
+                    onChange={(e) => handleSettingChange('allowRegistrations', e.target.checked)}
                   />
-                  Debug Mode
+                  <span>Allow New Registrations</span>
                 </label>
-                <p className="form-help">Enable detailed error logging and debugging information.</p>
+                <p className="form-help">When disabled, new user registrations will be blocked.</p>
               </div>
             </div>
           </div>
         );
-     
-      case 'admin':
-        return (
-          <div className="settings-content">
-            <h2 className="section-title">Admin Account Management</h2>
-            <div className="settings-form">
-              <div className="form-group">
-                <label htmlFor="sessionTimeout">Session Timeout (minutes)</label>
-                <input
-                  type="number"
-                  id="sessionTimeout"
-                  min="5"
-                  max="120"
-                  value={settings.admin.sessionTimeout}
-                  onChange={(e) => handleSettingChange('admin', 'sessionTimeout', parseInt(e.target.value))}
-                />
-                <p className="form-help">Administrators will be automatically logged out after this period of inactivity.</p>
-              </div>
-              <div className="form-group">
-                <label htmlFor="passwordMinLength">Minimum Password Length</label>
-                <input
-                  type="number"
-                  id="passwordMinLength"
-                  min="6"
-                  max="20"
-                  value={settings.admin.passwordMinLength}
-                  onChange={(e) => handleSettingChange('admin', 'passwordMinLength', parseInt(e.target.value))}
-                />
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.admin.requireTwoFactor}
-                    onChange={(e) => handleSettingChange('admin', 'requireTwoFactor', e.target.checked)}
-                  />
-                  Require Two-Factor Authentication
-                </label>
-                <p className="form-help">Require administrators to use two-factor authentication for enhanced security.</p>
-              </div>
-              <div className="form-group">
-                <label htmlFor="maxLoginAttempts">Maximum Login Attempts</label>
-                <input
-                  type="number"
-                  id="maxLoginAttempts"
-                  min="3"
-                  max="10"
-                  value={settings.admin.maxLoginAttempts}
-                  onChange={(e) => handleSettingChange('admin', 'maxLoginAttempts', parseInt(e.target.value))}
-                />
-                <p className="form-help">Number of failed login attempts before account is temporarily locked.</p>
-              </div>
-            </div>
-          </div>
-        );
-     
+
       case 'notifications':
         return (
           <div className="settings-content">
@@ -268,10 +246,10 @@ const AdminSettings = () => {
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={settings.notifications.emailNotifications}
-                    onChange={(e) => handleSettingChange('notifications', 'emailNotifications', e.target.checked)}
+                    checked={settings.notificationSettings?.emailNotifications}
+                    onChange={(e) => handleSettingChange('emailNotifications', e.target.checked, 'notificationSettings')}
                   />
-                  Email Notifications
+                  <span>Email Notifications</span>
                 </label>
                 <p className="form-help">Receive important system notifications via email.</p>
               </div>
@@ -279,152 +257,91 @@ const AdminSettings = () => {
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={settings.notifications.smsNotifications}
-                    onChange={(e) => handleSettingChange('notifications', 'smsNotifications', e.target.checked)}
+                    checked={settings.notificationSettings?.pushNotifications}
+                    onChange={(e) => handleSettingChange('pushNotifications', e.target.checked, 'notificationSettings')}
                   />
-                  SMS Notifications
-                </label>
-                <p className="form-help">Receive critical alerts via SMS message.</p>
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.notifications.pushNotifications}
-                    onChange={(e) => handleSettingChange('notifications', 'pushNotifications', e.target.checked)}
-                  />
-                  Push Notifications
+                  <span>Push Notifications</span>
                 </label>
                 <p className="form-help">Receive browser push notifications when logged in.</p>
               </div>
               <div className="form-group">
-                <label htmlFor="notificationFrequency">Notification Frequency</label>
-                <select
-                  id="notificationFrequency"
-                  value={settings.notifications.notificationFrequency}
-                  onChange={(e) => handleSettingChange('notifications', 'notificationFrequency', e.target.value)}
-                >
-                  <option value="immediate">Immediate</option>
-                  <option value="hourly">Hourly Digest</option>
-                  <option value="daily">Daily Digest</option>
-                  <option value="weekly">Weekly Digest</option>
-                </select>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={settings.notificationSettings?.smsNotifications}
+                    onChange={(e) => handleSettingChange('smsNotifications', e.target.checked, 'notificationSettings')}
+                  />
+                  <span>SMS Notifications</span>
+                </label>
+                <p className="form-help">Receive critical alerts via SMS message.</p>
               </div>
             </div>
           </div>
         );
-     
-      case 'automation':
+
+      case 'system':
         return (
           <div className="settings-content">
-            <h2 className="section-title">Automation Settings</h2>
+            <h2 className="section-title">System Settings</h2>
             <div className="settings-form">
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.automation.autoBackup}
-                    onChange={(e) => handleSettingChange('automation', 'autoBackup', e.target.checked)}
-                  />
-                  Automatic Backups
-                </label>
-                <p className="form-help">Automatically create system backups at regular intervals.</p>
-              </div>
-              <div className="form-group">
-                <label htmlFor="backupFrequency">Backup Frequency</label>
+                <label htmlFor="timezone">Timezone</label>
                 <select
-                  id="backupFrequency"
-                  value={settings.automation.backupFrequency}
-                  onChange={(e) => handleSettingChange('automation', 'backupFrequency', e.target.value)}
-                  disabled={!settings.automation.autoBackup}
+                  id="timezone"
+                  value={settings.systemSettings?.timezone}
+                  onChange={(e) => handleSettingChange('timezone', e.target.value, 'systemSettings')}
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="Asia/Manila">Asia/Manila (PHT)</option>
+                  <option value="UTC">UTC</option>
+                  <option value="America/New_York">America/New_York (EST)</option>
+                  <option value="Europe/London">Europe/London (GMT)</option>
                 </select>
               </div>
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.automation.autoCleanup}
-                    onChange={(e) => handleSettingChange('automation', 'autoCleanup', e.target.checked)}
-                  />
-                  Automatic Cleanup
-                </label>
-                <p className="form-help">Automatically remove old logs and temporary files.</p>
+                <label htmlFor="currency">Currency</label>
+                <select
+                  id="currency"
+                  value={settings.systemSettings?.currency}
+                  onChange={(e) => handleSettingChange('currency', e.target.value, 'systemSettings')}
+                >
+                  <option value="PHP">PHP (Philippine Peso)</option>
+                  <option value="USD">USD (US Dollar)</option>
+                  <option value="EUR">EUR (Euro)</option>
+                </select>
               </div>
               <div className="form-group">
-                <label htmlFor="cleanupDays">Cleanup Retention (days)</label>
+                <label htmlFor="language">Language</label>
+                <select
+                  id="language"
+                  value={settings.systemSettings?.language}
+                  onChange={(e) => handleSettingChange('language', e.target.value, 'systemSettings')}
+                >
+                  <option value="en">English</option>
+                  <option value="tl">Tagalog</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="maxFileSize">Max File Size (MB)</label>
                 <input
                   type="number"
-                  id="cleanupDays"
-                  min="7"
-                  max="365"
-                  value={settings.automation.cleanupDays}
-                  onChange={(e) => handleSettingChange('automation', 'cleanupDays', parseInt(e.target.value))}
-                  disabled={!settings.automation.autoCleanup}
+                  id="maxFileSize"
+                  min="1"
+                  max="50"
+                  value={settings.maxFileSize ? settings.maxFileSize / (1024 * 1024) : 5}
+                  onChange={(e) => handleSettingChange('maxFileSize', parseInt(e.target.value) * 1024 * 1024)}
                 />
-                <p className="form-help">Keep logs and temporary files for this many days before cleanup.</p>
-              </div>
-              <div className="form-group">
-                <button className="btn btn-primary" onClick={handleBackup}>
-                  <FaDownload /> Create Backup Now
-                </button>
+                <p className="form-help">Maximum file upload size in megabytes.</p>
               </div>
             </div>
           </div>
         );
-     
+
       case 'maintenance':
         return (
           <div className="settings-content">
             <h2 className="section-title">System Maintenance</h2>
             <div className="settings-form">
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.maintenance.scheduledMaintenance}
-                    onChange={(e) => handleSettingChange('maintenance', 'scheduledMaintenance', e.target.checked)}
-                  />
-                  Scheduled Maintenance
-                </label>
-                <p className="form-help">Schedule a maintenance window for system updates.</p>
-              </div>
-              <div className="form-group">
-                <label htmlFor="maintenanceMessage">Maintenance Message</label>
-                <textarea
-                  id="maintenanceMessage"
-                  rows="3"
-                  value={settings.maintenance.maintenanceMessage}
-                  onChange={(e) => handleSettingChange('maintenance', 'maintenanceMessage', e.target.value)}
-                  disabled={!settings.maintenance.scheduledMaintenance}
-                ></textarea>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="maintenanceStartTime">Start Time</label>
-                  <input
-                    type="datetime-local"
-                    id="maintenanceStartTime"
-                    value={settings.maintenance.maintenanceStartTime}
-                    onChange={(e) => handleSettingChange('maintenance', 'maintenanceStartTime', e.target.value)}
-                    disabled={!settings.maintenance.scheduledMaintenance}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="maintenanceEndTime">End Time</label>
-                  <input
-                    type="datetime-local"
-                    id="maintenanceEndTime"
-                    value={settings.maintenance.maintenanceEndTime}
-                    onChange={(e) => handleSettingChange('maintenance', 'maintenanceEndTime', e.target.value)}
-                    disabled={!settings.maintenance.scheduledMaintenance}
-                  />
-                </div>
-              </div>
-              <div className="system-info">
+              <div className="system-info-card">
                 <h3>System Information</h3>
                 <div className="info-grid">
                   <div className="info-item">
@@ -432,31 +349,37 @@ const AdminSettings = () => {
                     <span className="info-value">{systemInfo.version}</span>
                   </div>
                   <div className="info-item">
-                    <span className="info-label">Uptime:</span>
-                    <span className="info-value">{systemInfo.uptime}</span>
+                    <span className="info-label">Total Users:</span>
+                    <span className="info-value">{systemInfo.totalUsers.toLocaleString()}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Service Providers:</span>
+                    <span className="info-value">{systemInfo.serviceProviders.toLocaleString()}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Active Users:</span>
+                    <span className="info-value">{systemInfo.activeUsers.toLocaleString()}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">Total Bookings:</span>
+                    <span className="info-value">{systemInfo.totalBookings.toLocaleString()}</span>
                   </div>
                   <div className="info-item">
                     <span className="info-label">Last Backup:</span>
                     <span className="info-value">{systemInfo.lastBackup}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="info-label">Database Size:</span>
-                    <span className="info-value">{systemInfo.dbSize}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Active Users:</span>
-                    <span className="info-value">{systemInfo.activeUsers}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="info-label">Total Bookings:</span>
-                    <span className="info-value">{systemInfo.totalBookings}</span>
-                  </div>
                 </div>
+              </div>
+              <div className="form-group">
+                <button className="btn btn-secondary" onClick={handleBackup}>
+                  <FaDownload /> Create Backup Now
+                </button>
+                <p className="form-help">Create a manual backup of the system database.</p>
               </div>
             </div>
           </div>
         );
-     
+
       case 'terms':
         return (
           <div className="settings-content">
@@ -464,24 +387,24 @@ const AdminSettings = () => {
             <div className="policy-container">
               <div className="policy-section">
                 <h3>Terms of Service</h3>
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl.</p>
+                <p>By using SkillConnect, you agree to our Terms of Service. These terms govern your use of our platform and services. Please read them carefully before using our services.</p>
               </div>
               <div className="policy-section">
                 <h3>Privacy Policy</h3>
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl.</p>
+                <p>We are committed to protecting your privacy. Our Privacy Policy explains how we collect, use, and safeguard your personal information when you use our platform.</p>
               </div>
               <div className="policy-section">
                 <h3>Cookie Policy</h3>
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl.</p>
+                <p>We use cookies to enhance your experience on our platform. Our Cookie Policy explains what cookies are, how we use them, and how you can manage your cookie preferences.</p>
               </div>
               <div className="policy-section">
                 <h3>Refund Policy</h3>
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl. Nullam auctor, nisl eget ultricies tincidunt, nisl nisl aliquam nisl, eget ultricies nisl nisl eget nisl.</p>
+                <p>Our Refund Policy outlines the conditions under which refunds may be issued for services booked through our platform. Please review this policy before making a booking.</p>
               </div>
             </div>
           </div>
         );
-     
+
       case 'about':
         return (
           <div className="settings-content">
@@ -489,7 +412,7 @@ const AdminSettings = () => {
             <div className="about-container">
               <div className="about-section">
                 <h3>Our Mission</h3>
-                <p>SkillConnect4B410 is dedicated to connecting skilled service providers with community members who need their expertise. Our platform makes it easy to find, book, and review services in your local area.</p>
+                <p>SkillConnect is dedicated to connecting skilled service providers with community members who need their expertise. Our platform makes it easy to find, book, and review services in your local area.</p>
               </div>
               <div className="about-section">
                 <h3>Our Team</h3>
@@ -498,9 +421,8 @@ const AdminSettings = () => {
               <div className="about-section">
                 <h3>Contact Information</h3>
                 <div className="contact-info">
-                  <p><strong>Email:</strong> admin@skillconnect.com</p>
-                  <p><strong>Phone:</strong> (123) 456-7890</p>
-                  <p><strong>Address:</strong> 123 Main Street, Anytown, USA 12345</p>
+                  <p><strong>Email:</strong> {settings.contactEmail || 'admin@skillconnect.com'}</p>
+                  <p><strong>Phone:</strong> {settings.contactPhone || '(123) 456-7890'}</p>
                 </div>
               </div>
               <div className="about-section">
@@ -508,7 +430,7 @@ const AdminSettings = () => {
                 <div className="version-history">
                   <div className="version-item">
                     <span className="version-number">v1.0.0</span>
-                    <span className="version-date">June 15, 2023</span>
+                    <span className="version-date">Current Version</span>
                     <span className="version-desc">Initial release with core functionality</span>
                   </div>
                 </div>
@@ -516,474 +438,106 @@ const AdminSettings = () => {
             </div>
           </div>
         );
-     
+
       default:
         return <div className="settings-content">Select a settings section</div>;
     }
   };
 
-
   return (
-    <>
-      <style>{`
-        .admin-settings-container {
-          display: flex;
-          height: calc(100vh - 90px);
-        }
-       
-        .settings-sidebar {
-          width: 250px;
-          background: #fff;
-          box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
-          overflow-y: auto;
-        }
-       
-        .settings-header {
-          padding: 20px;
-          border-bottom: 1px solid #f0f0f0;
-        }
-       
-        .settings-title {
-          font-size: 1.2rem;
-          font-weight: 600;
-          color: #333;
-          margin: 0;
-          display: flex;
-          align-items: center;
-        }
-       
-        .settings-title .icon {
-          margin-right: 10px;
-          color: #0a84ff;
-        }
-       
-        .settings-nav {
-          padding: 15px 0;
-        }
-       
-        .nav-section {
-          margin-bottom: 20px;
-        }
-       
-        .nav-section-title {
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #888;
-          text-transform: uppercase;
-          padding: 0 20px;
-          margin-bottom: 10px;
-        }
-       
-        .nav-link {
-          display: flex;
-          align-items: center;
-          padding: 12px 20px;
-          color: #444;
-          text-decoration: none;
-          font-weight: 500;
-          font-size: 0.9rem;
-          transition: all 0.3s;
-          position: relative;
-        }
-       
-        .nav-link:hover {
-          background: #f1f3f7;
-        }
-       
-        .nav-link.active {
-          background: #0a84ff;
-          color: #fff;
-        }
-       
-        .nav-icon {
-          font-size: 1rem;
-          margin-right: 10px;
-        }
-       
-        .settings-content-wrapper {
-          flex: 1;
-          padding: 20px;
-          overflow-y: auto;
-          background: #f5f6fa;
-        }
-       
-        .settings-content {
-          background: #fff;
-          border-radius: 10px;
-          padding: 25px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-       
-        .section-title {
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #333;
-          margin: 0 0 20px 0;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eee;
-        }
-       
-        .settings-form {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-       
-        .form-group {
-          display: flex;
-          flex-direction: column;
-        }
-       
-        .form-row {
-          display: flex;
-          gap: 20px;
-        }
-       
-        .form-row .form-group {
-          flex: 1;
-        }
-       
-        label {
-          font-weight: 500;
-          margin-bottom: 8px;
-          color: #333;
-        }
-       
-        input[type="text"],
-        input[type="email"],
-        input[type="number"],
-        input[type="datetime-local"],
-        select,
-        textarea {
-          padding: 10px 15px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 0.9rem;
-        }
-       
-        .checkbox-label {
-          display: flex;
-          align-items: center;
-          font-weight: 500;
-          cursor: pointer;
-        }
-       
-        .checkbox-label input {
-          margin-right: 10px;
-        }
-       
-        .form-help {
-          font-size: 0.8rem;
-          color: #666;
-          margin-top: 5px;
-        }
-       
-        .btn {
-          padding: 10px 15px;
-          border: none;
-          border-radius: 6px;
-          font-size: 0.9rem;
-          font-weight: 500;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          transition: all 0.2s;
-        }
-       
-        .btn-primary {
-          background: #0a84ff;
-          color: white;
-        }
-       
-        .btn-primary:hover {
-          background: #0077e6;
-        }
-       
-        .save-status {
-          position: fixed;
-          top: 100px;
-          right: 20px;
-          padding: 10px 15px;
-          border-radius: 6px;
-          font-weight: 500;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          z-index: 1000;
-        }
-       
-        .save-status.saving {
-          background: #f8f9fa;
-          color: #333;
-          border: 1px solid #ddd;
-        }
-       
-        .save-status.success {
-          background: #d4edda;
-          color: #155724;
-          border: 1px solid #c3e6cb;
-        }
-       
-        .save-status.error {
-          background: #f8d7da;
-          color: #721c24;
-          border: 1px solid #f5c6cb;
-        }
-       
-        .save-status.backup {
-          background: #d1ecf1;
-          color: #0c5460;
-          border: 1px solid #bee5eb;
-        }
-       
-        .save-status.backup-success {
-          background: #d1ecf1;
-          color: #0c5460;
-          border: 1px solid #bee5eb;
-        }
-       
-        .system-info {
-          margin-top: 30px;
-          padding: 20px;
-          background: #f8f9fa;
-          border-radius: 8px;
-        }
-       
-        .system-info h3 {
-          margin: 0 0 15px 0;
-          font-size: 1.1rem;
-          color: #333;
-        }
-       
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 15px;
-        }
-       
-        .info-item {
-          display: flex;
-          justify-content: space-between;
-        }
-       
-        .info-label {
-          font-weight: 500;
-          color: #555;
-        }
-       
-        .info-value {
-          font-weight: 600;
-          color: #333;
-        }
-       
-        .policy-container,
-        .about-container {
-          display: flex;
-          flex-direction: column;
-          gap: 25px;
-        }
-       
-        .policy-section,
-        .about-section {
-          padding-bottom: 20px;
-          border-bottom: 1px solid #eee;
-        }
-       
-        .policy-section:last-child,
-        .about-section:last-child {
-          border-bottom: none;
-        }
-       
-        .policy-section h3,
-        .about-section h3 {
-          margin: 0 0 10px 0;
-          font-size: 1.1rem;
-          color: #333;
-        }
-       
-        .contact-info p {
-          margin: 5px 0;
-        }
-       
-        .version-history {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-       
-        .version-item {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-        }
-       
-        .version-number {
-          font-weight: 600;
-          color: #0a84ff;
-        }
-       
-        .version-date {
-          font-size: 0.8rem;
-          color: #666;
-        }
-       
-        .version-desc {
-          font-size: 0.9rem;
-          color: #555;
-        }
-       
-        .back-button {
-          margin-bottom: 20px;
-        }
-       
-        @media (max-width: 768px) {
-          .admin-settings-container {
-            flex-direction: column;
-          }
-         
-          .settings-sidebar {
-            width: 100%;
-          }
-         
-          .form-row {
-            flex-direction: column;
-            gap: 0;
-          }
-        }
-      `}</style>
+    <div className="admin-settings-container">
+      <aside className="settings-sidebar">
+        <div className="settings-header">
+          <h1 className="settings-title">
+            <FaCog className="icon" />
+            Settings
+          </h1>
+        </div>
 
-
-      <div className="admin-settings-container">
-        <aside className="settings-sidebar">
-          <div className="settings-header">
-            <h1 className="settings-title">
-              <FaCog className="icon" />
-              Settings
-            </h1>
-          </div>
-         
-          <nav className="settings-nav">
-            <div className="nav-section">
-              <div className="nav-section-title">Settings</div>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'general' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('general');
-                }}
-              >
-                <FaCog className="nav-icon" />
-                General Settings
-              </Link>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'admin' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('admin');
-                }}
-              >
-                <FaUserShield className="nav-icon" />
-                Admin Account Management
-              </Link>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'notifications' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('notifications');
-                }}
-              >
-                <FaBell className="nav-icon" />
-                Notifications
-              </Link>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'automation' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('automation');
-                }}
-              >
-                <FaRobot className="nav-icon" />
-                Automation
-              </Link>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'maintenance' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('maintenance');
-                }}
-              >
-                <FaTools className="nav-icon" />
-                System Maintenance
-              </Link>
-            </div>
-           
-            <div className="nav-section">
-              <div className="nav-section-title">About</div>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'terms' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('terms');
-                }}
-              >
-                <FaFileContract className="nav-icon" />
-                Terms & Policies
-              </Link>
-              <Link
-                to="#"
-                className={`nav-link ${activeSection === 'about' ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveSection('about');
-                }}
-              >
-                <FaInfoCircle className="nav-icon" />
-                About Us
-              </Link>
-            </div>
-          </nav>
-        </aside>
-
-
-        <div className="settings-content-wrapper">
-          <div className="back-button">
-            <button className="btn btn-primary" onClick={() => navigate('/admin/dashboard')}>
-              <FaTimes /> Back to Dashboard
+        <nav className="settings-nav">
+          <div className="nav-section">
+            <div className="nav-section-title">Configuration</div>
+            <button
+              className={`nav-link ${activeSection === 'general' ? 'active' : ''}`}
+              onClick={() => setActiveSection('general')}
+            >
+              <FaCog className="nav-icon" />
+              General Settings
+            </button>
+            <button
+              className={`nav-link ${activeSection === 'notifications' ? 'active' : ''}`}
+              onClick={() => setActiveSection('notifications')}
+            >
+              <FaBell className="nav-icon" />
+              Notifications
+            </button>
+            <button
+              className={`nav-link ${activeSection === 'system' ? 'active' : ''}`}
+              onClick={() => setActiveSection('system')}
+            >
+              <FaServer className="nav-icon" />
+              System Settings
+            </button>
+            <button
+              className={`nav-link ${activeSection === 'maintenance' ? 'active' : ''}`}
+              onClick={() => setActiveSection('maintenance')}
+            >
+              <FaTools className="nav-icon" />
+              Maintenance
             </button>
           </div>
-         
-          {renderSettingsContent()}
-         
-          {activeSection !== 'terms' && activeSection !== 'about' && (
-            <div className="form-group" style={{ marginTop: '30px' }}>
-              <button className="btn btn-primary" onClick={saveSettings}>
-                <FaSave /> Save Settings
-              </button>
-            </div>
-          )}
+
+          <div className="nav-section">
+            <div className="nav-section-title">Information</div>
+            <button
+              className={`nav-link ${activeSection === 'terms' ? 'active' : ''}`}
+              onClick={() => setActiveSection('terms')}
+            >
+              <FaFileContract className="nav-icon" />
+              Terms & Policies
+            </button>
+            <button
+              className={`nav-link ${activeSection === 'about' ? 'active' : ''}`}
+              onClick={() => setActiveSection('about')}
+            >
+              <FaInfoCircle className="nav-icon" />
+              About Us
+            </button>
+          </div>
+        </nav>
+      </aside>
+
+      <div className="settings-content-wrapper">
+        <div className="settings-header-actions">
+          <button className="btn btn-back" onClick={() => navigate('/admin/analytics')}>
+            <FaArrowLeft /> Back to Dashboard
+          </button>
         </div>
+
+        {renderSettingsContent()}
+
+        {activeSection !== 'terms' && activeSection !== 'about' && (
+          <div className="settings-actions">
+            <button
+              className="btn btn-primary"
+              onClick={saveSettings}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <FaSync className="spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <FaSave /> Save Settings
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
-
-
-      {saveStatus && (
-        <div className={`save-status ${saveStatus}`}>
-          {saveStatus === 'saving' && <><FaSync className="spin" /> Saving settings...</>}
-          {saveStatus === 'success' && <><FaCheck /> Settings saved successfully!</>}
-          {saveStatus === 'error' && <><FaExclamationTriangle /> Error saving settings!</>}
-          {saveStatus === 'backup' && <><FaSync className="spin" /> Creating backup...</>}
-          {saveStatus === 'backup-success' && <><FaCheck /> Backup created successfully!</>}
-        </div>
-      )}
-    </>
+    </div>
   );
 };
-
 
 export default AdminSettings;

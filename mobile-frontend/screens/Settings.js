@@ -58,7 +58,7 @@ export default function Settings({ navigation }) {
         <Ionicons name="chevron-forward" size={18} color="#999" style={styles.chevron}/>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.row}>
+      <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("AboutUs")}>
         <Ionicons name="information-circle-outline" size={20} color="#333" style={styles.icon}/>
         <Text style={styles.label}>About Us</Text>
         <Ionicons name="chevron-forward" size={18} color="#999" style={styles.chevron}/>

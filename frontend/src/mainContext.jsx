@@ -76,8 +76,27 @@ export const MainProvider = ({ children }) => {
         if (token) updateSocketToken(token);
 
         if (navigate) {
-          if (storedTokenType === "admin") navigate("/admin/analytics");
-          else navigate("/user/my-service");
+          if (storedTokenType === "admin") {
+            const adminLastPath = localStorage.getItem("adminLastPath");
+            if (adminLastPath && adminLastPath.startsWith("/admin/")) {
+              navigate(adminLastPath, { replace: true });
+            } else {
+              navigate("/admin/analytics", { replace: true });
+            }
+          } else {
+            // Navigate based on user role (for refresh scenarios, check last path first)
+            const userLastPath = localStorage.getItem("userLastPath");
+            if (userLastPath && userLastPath.startsWith("/user/")) {
+              navigate(userLastPath, { replace: true });
+            } else if (userData.role === "Service Provider") {
+              navigate("/user/my-service", { replace: true });
+              localStorage.setItem("userLastPath", "/user/my-service");
+            } else {
+              // Community Member or Service Provider Applicant
+              navigate("/user/service-request", { replace: true });
+              localStorage.setItem("userLastPath", "/user/service-request");
+            }
+          }
         }
         return;
       }

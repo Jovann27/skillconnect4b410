@@ -56,50 +56,84 @@ export const register = catchAsyncError(async (req, res, next) => {
   const validIdFile = req.files?.validId;
   let uploadedFiles = {};
 
-  // Only require validId for Service Provider Applicants (they need to provide ID for verification)
+  // Optimize registration based on role
   if (role === "Service Provider Applicant") {
+    // Service Provider Applicants need file processing
+    // Require validId for Service Provider Applicants
     if (!validIdFile) return next(new ErrorHandler("Valid ID is required for Service Provider applications", 400));
     if (!validIdFile.mimetype.startsWith("image/")) {
       return next(new ErrorHandler("Valid ID must be an image file (JPG, PNG, etc.)", 400));
     }
-    uploadedFiles.validId = await uploadToCloudinary(validIdFile.tempFilePath, "skillconnect/validIds");
-  }
 
-  if (req.files?.profilePic) uploadedFiles.profilePic = await uploadToCloudinary(req.files.profilePic.tempFilePath, "skillconnect/profiles");
+    // Process all files in parallel for Service Providers
+    const uploadPromises = [];
+    uploadPromises.push(uploadToCloudinary(validIdFile.tempFilePath, "skillconnect/validIds").then(url => { uploadedFiles.validId = url; }));
 
-  const certificatePaths = [];
-  if (req.files?.certificates) {
-    const filesArray = Array.isArray(req.files.certificates) ? req.files.certificates : [req.files.certificates];
-    // upload in parallel
-    const uploads = await Promise.all(filesArray.map(file => uploadToCloudinary(file.tempFilePath, "skillconnect/certificates")));
-    certificatePaths.push(...uploads);
-  }
+    if (req.files?.profilePic) {
+      uploadPromises.push(uploadToCloudinary(req.files.profilePic.tempFilePath, "skillconnect/profiles").then(url => { uploadedFiles.profilePic = url; }));
+    }
 
-  // Normalize skills if provided
-  let normalizedSkills = [];
-  if (req.body.skills) {
-    const incoming = Array.isArray(req.body.skills) ? req.body.skills : (typeof req.body.skills === 'string' ? req.body.skills.split(',') : []);
-    normalizedSkills = incoming.map(s => s.toString().trim().toLowerCase()).filter(Boolean);
-  }
+    const certificatePaths = [];
+    if (req.files?.certificates) {
+      const filesArray = Array.isArray(req.files.certificates) ? req.files.certificates : [req.files.certificates];
+      filesArray.forEach(file => {
+        uploadPromises.push(uploadToCloudinary(file.tempFilePath, "skillconnect/certificates").then(url => { certificatePaths.push(url); }));
+      });
+    }
 
-  const user = await User.create({
-    username, firstName, lastName, email, phone, address, birthdate, employed,
-    password, role,
-    validId: uploadedFiles.validId,
-    profilePic: uploadedFiles.profilePic || "",
-    certificates: certificatePaths,
-    skills: normalizedSkills,
-  });
+    // Wait for all uploads to complete
+    await Promise.all(uploadPromises);
 
-  // Send notification for Service Provider Applicants
-  if (role === "Service Provider Applicant") {
-    await sendNotification(
+    // Normalize skills for Service Providers
+    let normalizedSkills = [];
+    if (req.body.skills) {
+      const incoming = Array.isArray(req.body.skills) ? req.body.skills : (typeof req.body.skills === 'string' ? req.body.skills.split(',') : []);
+      normalizedSkills = incoming.map(s => s.toString().trim().toLowerCase()).filter(Boolean);
+    }
+
+    // Create user with Service Provider data
+    const user = await User.create({
+      username, firstName, lastName, email, phone, address, birthdate, employed,
+      password, role,
+      validId: uploadedFiles.validId,
+      profilePic: uploadedFiles.profilePic || "",
+      certificates: certificatePaths,
+      skills: normalizedSkills,
+    });
+
+    // Send notification for Service Provider Applicants (non-blocking)
+    sendNotification(
       user._id,
       "Application Under Review",
       "Your application to become a Service Provider is being reviewed by our administrators. You will receive a notification once your application is approved."
-    );
+    ).catch(err => console.error("Notification error:", err));
+
+    sendToken(user, 201, res, "User registered successfully");
+    return;
   }
 
+  // For Community Members: Fast path - minimal processing
+  // Create user immediately, profile picture can be uploaded later if needed
+  const user = await User.create({
+    username, firstName, lastName, email, phone, address, birthdate, employed,
+    password, role,
+    profilePic: "",
+    validId: "",
+    certificates: [],
+    skills: [],
+  });
+
+  // Upload profile picture asynchronously after user creation (non-blocking)
+  if (req.files?.profilePic) {
+    uploadToCloudinary(req.files.profilePic.tempFilePath, "skillconnect/profiles")
+      .then(profilePicUrl => {
+        user.profilePic = profilePicUrl;
+        user.save().catch(err => console.error("Error updating profile picture:", err));
+      })
+      .catch(err => console.error("Error uploading profile picture:", err));
+  }
+
+  // Send response immediately without waiting for profile picture upload
   sendToken(user, 201, res, "User registered successfully");
 });
 

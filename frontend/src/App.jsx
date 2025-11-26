@@ -83,6 +83,13 @@ const AppContent = () => {
 
 
 
+  // Save last path whenever user navigates to a user route
+  useEffect(() => {
+    if (isUser && location.pathname.startsWith("/user/") && location.pathname !== "/user/login") {
+      localStorage.setItem("userLastPath", location.pathname);
+    }
+  }, [location.pathname, isUser]);
+
   useEffect(() => {
     if (!authLoaded) return;
 
@@ -102,21 +109,35 @@ const AppContent = () => {
         } else {
           navigate("/admin/analytics", { replace: true });
         }
-      } else if (isUser && location.pathname === "/") {
-        const lastPath = localStorage.getItem("userLastPath");
-        if (lastPath && lastPath.startsWith("/user/")) {
-          navigate(lastPath, { replace: true });
-        } else {
-          // Navigate based on user role
-          if (userRole === "Service Provider") {
-            navigate("/user/my-service", { replace: true });
+      } else if (isUser) {
+        // Redirect if on home page or invalid route
+        if (location.pathname === "/" || location.pathname === "/home") {
+          const lastPath = localStorage.getItem("userLastPath");
+          if (lastPath && lastPath.startsWith("/user/")) {
+            navigate(lastPath, { replace: true });
           } else {
-            navigate("/user/service-request", { replace: true });
+            // Navigate based on user role
+            // Service Provider → /user/my-service
+            // Community Member and Service Provider Applicant → /user/service-request
+            if (userRole === "Service Provider") {
+              navigate("/user/my-service", { replace: true });
+              localStorage.setItem("userLastPath", "/user/my-service");
+            } else {
+              // Community Member or Service Provider Applicant
+              navigate("/user/service-request", { replace: true });
+              localStorage.setItem("userLastPath", "/user/service-request");
+            }
           }
         }
       }
+    } else if (!isAuthorized && !isOnAuthPage && location.pathname.startsWith("/user/")) {
+      // Redirect to login if trying to access user routes without auth
+      navigate("/login", { replace: true });
+    } else if (!isAuthorized && !isOnAuthPage && location.pathname.startsWith("/admin/")) {
+      // Redirect to admin login if trying to access admin routes without auth
+      navigate("/admin/login", { replace: true });
     }
-  }, [isAuthorized, location.pathname, navigate, isAdmin, isUser, authLoaded]);
+  }, [isAuthorized, location.pathname, navigate, isAdmin, isUser, authLoaded, userRole]);
 
   return (
     <>
@@ -142,6 +163,14 @@ const AppContent = () => {
           {/* Routes available to all authenticated users */}
           <Route index element={<MyService />} />
           <Route path="dashboard" element={<MyService />} />
+          <Route
+            path="my-service"
+            element={
+              <RoleGuard allowedRoles={["Service Provider"]}>
+                <MyService />
+              </RoleGuard>
+            }
+          />
           <Route path="my-service" element={<MyService />} />
           <Route path="manage-profile" element={<ManageProfile />} />
           <Route path="general-settings" element={<Settings />} />

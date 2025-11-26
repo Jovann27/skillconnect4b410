@@ -162,20 +162,20 @@ const ReviewServiceRequest = () => {
             <div className="card-header">
               <h2>
                 <i className="fas fa-clipboard-list"></i>
-                Service Requests ({requests.length})
+                Service Requests ({total})
               </h2>
               <div className="card-stats">
                 <span className="stat-item">
                   <i className="fas fa-clock"></i>
-                  {requests.filter(r => r.status === 'pending').length} Pending
+                  {requests.filter(r => r.status?.toLowerCase() === 'pending' || r.status?.toLowerCase() === 'available').length} Pending
                 </span>
                 <span className="stat-item">
                   <i className="fas fa-check-circle"></i>
-                  {requests.filter(r => r.status === 'accepted').length} Accepted
+                  {requests.filter(r => r.status?.toLowerCase() === 'accepted' || r.status?.toLowerCase() === 'working').length} Accepted
                 </span>
                 <span className="stat-item">
                   <i className="fas fa-check-double"></i>
-                  {requests.filter(r => r.status === 'complete').length} Complete
+                  {requests.filter(r => r.status?.toLowerCase() === 'complete').length} Complete
                 </span>
               </div>
             </div>
@@ -247,12 +247,12 @@ const ReviewServiceRequest = () => {
                           </div>
                         </td>
                         <td>
-                          <span className={`status-badge ${r.status?.toLowerCase()}`}>
+                          <span className={`status-badge ${(r.status || '').toLowerCase()}`}>
                             <i className={`fas ${
-                              r.status === 'Available' ? 'fa-clock' :
-                              r.status === 'Working' ? 'fa-play-circle' :
-                              r.status === 'Complete' ? 'fa-check-double' :
-                              r.status === 'Cancelled' ? 'fa-times-circle' : 'fa-question-circle'
+                              r.status?.toLowerCase() === 'available' || r.status?.toLowerCase() === 'pending' ? 'fa-clock' :
+                              r.status?.toLowerCase() === 'working' || r.status?.toLowerCase() === 'accepted' ? 'fa-play-circle' :
+                              r.status?.toLowerCase() === 'complete' ? 'fa-check-double' :
+                              r.status?.toLowerCase() === 'cancelled' ? 'fa-times-circle' : 'fa-question-circle'
                             }`}></i>
                             {r.status || 'Unknown'}
                           </span>

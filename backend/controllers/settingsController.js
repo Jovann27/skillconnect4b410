@@ -2,6 +2,8 @@ import User from "../models/userSchema.js";
 import JobFair from "../models/jobFairSchema.js";
 import ServiceRequest from "../models/serviceRequest.js";
 import Settings from "../models/settings.js";
+import { catchAsyncError } from "../middlewares/catchAsyncError.js";
+import ErrorHandler from "../middlewares/error.js";
 
 export const getSkilledUsers = async (req, res) => {
   try {
@@ -216,23 +218,22 @@ export const completeServiceRequest = async (req, res) => {
   }
 };
 
-
-export const getSettings = async (req, res) => {
-  try {
-    const settings = await Settings.findOne();
-    res.json({ success: true, settings });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to get settings" });
+export const getSettings = catchAsyncError(async (req, res, next) => {
+  const settings = await Settings.findOne();
+  if (!settings) {
+    // Return default settings if none exist
+    const defaultSettings = new Settings();
+    await defaultSettings.save();
+    return res.json({ success: true, settings: defaultSettings });
   }
-};
+  res.json({ success: true, settings });
+});
 
-export const updateSettings = async (req, res) => {
-  try {
-    const updated = await Settings.findOneAndUpdate({}, req.body, { new: true, upsert: true });
-    res.json({ success: true, updated });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Failed to update settings" });
-  }
-};
+export const updateSettings = catchAsyncError(async (req, res, next) => {
+  const updated = await Settings.findOneAndUpdate({}, req.body, { 
+    new: true, 
+    upsert: true,
+    runValidators: true 
+  });
+  res.json({ success: true, message: "Settings updated successfully", settings: updated });
+});

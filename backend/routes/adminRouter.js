@@ -11,6 +11,7 @@ import {
   getServiceProviderApplicants,
   updateUserServiceProfile,
 } from "../controllers/adminController.js";
+import { getSettings, updateSettings } from "../controllers/settingsController.js";
 import { isAdminAuthenticated } from "../middlewares/auth.js";
 import { authorizeRoles } from "../middlewares/authorizeRoles.js";
 
@@ -28,5 +29,9 @@ router.get("/service-providers", isAdminAuthenticated, getServiceProviders);
 router.get("/service-provider-applicants", isAdminAuthenticated, authorizeRoles("Admin"), getServiceProviderApplicants);
 router.put("/approve-service-provider/:id", isAdminAuthenticated, authorizeRoles("Admin"), approveServiceProvider);
 router.put("/reject-service-provider/:id", isAdminAuthenticated, authorizeRoles("Admin"), rejectServiceProvider);
+
+// Settings Management
+router.get("/settings", isAdminAuthenticated, authorizeRoles("Admin"), getSettings);
+router.put("/settings", isAdminAuthenticated, authorizeRoles("Admin"), updateSettings);
 
 export default router;

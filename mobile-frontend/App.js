@@ -41,8 +41,93 @@ import BlockedWorker from "./screens/BlockedWorker";
 import CustomDrawer from "./components/CustomDrawer";
 import GiveReview from "./screens/GiveReview";
 import NotificationScreen from "./screens/NotificationScreen";
+import RoleGuard, { withRoleGuard } from "./components/RoleGuard";
+import AboutUs from "./screens/AboutUs";
+import TermsScreen from "./screens/TermsScreen";
+import PrivacyScreen from "./screens/PrivacyScreen";
 
 const Stack = createNativeStackNavigator();
+
+const SERVICE_FLOW_ROLES = ["Community Member", "Service Provider", "Service Provider Applicant"];
+const PROVIDER_ONLY_ROLES = ["Service Provider"];
+
+const GuardedPlaceOrder = withRoleGuard(PlaceOrder, {
+  allowedRoles: SERVICE_FLOW_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedWaitingForWorker = withRoleGuard(WaitingForWorker, {
+  allowedRoles: SERVICE_FLOW_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedRecords = withRoleGuard(Records, {
+  allowedRoles: SERVICE_FLOW_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedOrderDetails = withRoleGuard(OrderDetails, {
+  allowedRoles: SERVICE_FLOW_ROLES,
+  fallbackRoute: "Records",
+});
+const GuardedProfileReviews = withRoleGuard(ProfileReviews, {
+  fallbackRoute: "Home",
+});
+const GuardedService = withRoleGuard(Service, {
+  allowedRoles: PROVIDER_ONLY_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedClients = withRoleGuard(Clients, {
+  allowedRoles: PROVIDER_ONLY_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedClientAccepted = withRoleGuard(ClientAccepted, {
+  allowedRoles: PROVIDER_ONLY_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedBlockedWorker = withRoleGuard(BlockedWorker, {
+  allowedRoles: PROVIDER_ONLY_ROLES,
+  fallbackRoute: "Home",
+});
+const GuardedPhoneVerification = withRoleGuard(PhoneVerification, {
+  fallbackRoute: "Profile",
+});
+const GuardedEditEmail = withRoleGuard(EditEmail, {
+  fallbackRoute: "Profile",
+});
+const GuardedEditFirstName = withRoleGuard(EditFirstName, {
+  fallbackRoute: "Profile",
+});
+const GuardedEditLastName = withRoleGuard(EditLastName, {
+  fallbackRoute: "Profile",
+});
+const GuardedWorkers = withRoleGuard(Workers, {
+  fallbackRoute: "Home",
+});
+const GuardedChat = withRoleGuard(Chat, {
+  fallbackRoute: "Home",
+});
+const GuardedNotificationScreen = withRoleGuard(NotificationScreen, {
+  fallbackRoute: "Home",
+});
+const GuardedNotification = withRoleGuard(Notification, {
+  fallbackRoute: "Home",
+});
+const GuardedFavourites = withRoleGuard(Favourites, {
+  fallbackRoute: "Home",
+});
+const GuardedBlocked = withRoleGuard(Blocked, {
+  fallbackRoute: "Home",
+});
+const GuardedGiveReview = withRoleGuard(GiveReview, {
+  fallbackRoute: "Home",
+});
+const GuardedAboutUs = withRoleGuard(AboutUs, {
+  fallbackRoute: "Home",
+});
+const GuardedTermsScreen = withRoleGuard(TermsScreen, {
+  fallbackRoute: "TermsPolicies",
+});
+const GuardedPrivacyScreen = withRoleGuard(PrivacyScreen, {
+  fallbackRoute: "TermsPolicies",
+});
 
 // Configure notification behavior when app is foregrounded
 Notifications.setNotificationHandler({
@@ -159,12 +244,16 @@ export default function App() {
             </Stack.Screen>
             <Stack.Screen name="Register" component={Register} />
             <Stack.Screen name="Settings">
-              {(props) => <Settings {...props} setIsLoggedIn={setIsLoggedIn} />}
+              {(props) => (
+                <RoleGuard navigation={props.navigation}>
+                  <Settings {...props} setIsLoggedIn={setIsLoggedIn} />
+                </RoleGuard>
+              )}
             </Stack.Screen>
 
             <Stack.Screen
               name="EditFirstName"
-              component={EditFirstName}
+              component={GuardedEditFirstName}
               options={{
                 presentation: "transparentModal",
                 headerShown: false,
@@ -174,7 +263,7 @@ export default function App() {
             />
             <Stack.Screen
               name="EditLastName"
-              component={EditLastName}
+              component={GuardedEditLastName}
               options={{
                 presentation: "transparentModal",
                 headerShown: false,
@@ -189,29 +278,29 @@ export default function App() {
             />
             <Stack.Screen
               name="PlaceOrder"
-              component={PlaceOrder}
+              component={GuardedPlaceOrder}
               options={{ headerTitle: "Place Order", headerTitleStyle: { fontSize: 17 } }}
             />
             <Stack.Screen
               name="ProfileReviews"
-              component={ProfileReviews}
+              component={GuardedProfileReviews}
               options={{ headerTitle: "Profile", headerTitleStyle: { fontSize: 17 } }}
             />
             <Stack.Screen
               name="Service"
-              component={Service}
+              component={GuardedService}
               options={{ headerTitle: "My Service", headerTitleStyle: { fontSize: 17 } }}
             />
-            <Stack.Screen name="Records" component={Records} />
+            <Stack.Screen name="Records" component={GuardedRecords} />
            
             <Stack.Screen
               name="Workers"
-              component={Workers}
+              component={GuardedWorkers}
               options={{ headerTitle: "Workers", headerTitleStyle: { fontSize: 17 } }}
             />
-            <Stack.Screen name="WaitingForWorker" component={WaitingForWorker} />
-            <Stack.Screen name="Chat" component={Chat} options={{ headerShown: false }} />
-            <Stack.Screen name="NotificationScreen" component={NotificationScreen} options={{ headerTitle: "Notifications" }}/>
+            <Stack.Screen name="WaitingForWorker" component={GuardedWaitingForWorker} />
+            <Stack.Screen name="Chat" component={GuardedChat} options={{ headerShown: false }} />
+            <Stack.Screen name="NotificationScreen" component={GuardedNotificationScreen} options={{ headerTitle: "Notifications" }}/>
 
             {/* Modified Screens */}
             <Stack.Screen
@@ -245,12 +334,16 @@ export default function App() {
                 ),
               })}
             >
-              {(props) => <Profile {...props} setIsLoggedIn={setIsLoggedIn} />}
+              {(props) => (
+                <RoleGuard navigation={props.navigation}>
+                  <Profile {...props} setIsLoggedIn={setIsLoggedIn} />
+                </RoleGuard>
+              )}
             </Stack.Screen>
 
             <Stack.Screen
               name="ClientAccepted"
-              component={ClientAccepted}
+              component={GuardedClientAccepted}
               options={({ navigation }) => ({
                 headerTitle: "Accepted Client",
                 headerLeft: () => (
@@ -266,7 +359,7 @@ export default function App() {
 
             <Stack.Screen
               name="EditEmail"
-              component={EditEmail}
+              component={GuardedEditEmail}
               options={({ navigation }) => ({
                 headerTitle: "Change Email",
                 headerTitleStyle: { fontSize: 17 },
@@ -283,7 +376,7 @@ export default function App() {
 
             <Stack.Screen
               name="PhoneVerification"
-              component={PhoneVerification}
+              component={GuardedPhoneVerification}
               options={({ navigation }) => ({
                 headerTitle: "Change your phone number",
                 headerTitleStyle: { fontSize: 17 },
@@ -300,7 +393,7 @@ export default function App() {
 
             <Stack.Screen
               name="Clients"
-              component={Clients}
+              component={GuardedClients}
               options={({ navigation }) => ({
                 headerTitle: "Clients",
                 headerTitleStyle: { fontSize: 17 },
@@ -317,7 +410,7 @@ export default function App() {
 
             <Stack.Screen
               name="OrderDetails"
-              component={OrderDetails}
+              component={GuardedOrderDetails}
               options={({ navigation }) => ({
                 headerTitle: "",
                 headerTitleStyle: { fontSize: 17 },
@@ -348,10 +441,58 @@ export default function App() {
                 ),
               })}
             />
+            <Stack.Screen
+              name="Terms"
+              component={GuardedTermsScreen}
+              options={({ navigation }) => ({
+                headerTitle: "Terms & Conditions",
+                headerTitleStyle: { fontSize: 17 },
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#000" />
+                  </TouchableOpacity>
+                ),
+              })}
+            />
+            <Stack.Screen
+              name="Privacy"
+              component={GuardedPrivacyScreen}
+              options={({ navigation }) => ({
+                headerTitle: "Privacy Policy",
+                headerTitleStyle: { fontSize: 17 },
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#000" />
+                  </TouchableOpacity>
+                ),
+              })}
+            />
+            <Stack.Screen
+              name="AboutUs"
+              component={GuardedAboutUs}
+              options={({ navigation }) => ({
+                headerTitle: "About SkillConnect",
+                headerTitleStyle: { fontSize: 17 },
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <Ionicons name="chevron-back" size={24} color="#000" />
+                  </TouchableOpacity>
+                ),
+              })}
+            />
 
             <Stack.Screen
               name="Notification"
-              component={Notification}
+              component={GuardedNotification}
               options={({ navigation }) => ({
                 headerTitleStyle: { fontSize: 17 },
                 headerLeft: () => (
@@ -369,7 +510,7 @@ export default function App() {
 
             <Stack.Screen
               name="Favourites"
-              component={Favourites}
+              component={GuardedFavourites}
               options={({ navigation }) => ({
                 headerTitleStyle: { fontSize: 17 },
                 headerLeft: () => (
@@ -385,7 +526,7 @@ export default function App() {
 
             <Stack.Screen
               name="Blocked"
-              component={Blocked}
+              component={GuardedBlocked}
               options={({ navigation }) => ({
                 headerTitleStyle: { fontSize: 17 },
                 headerLeft: () => (
@@ -400,7 +541,7 @@ export default function App() {
             />
             <Stack.Screen
               name="BlockedWorker"
-              component={BlockedWorker}
+              component={GuardedBlockedWorker}
               options={({ navigation }) => ({
                 headerTitleStyle: { fontSize: 17 },
                 headerLeft: () => (
@@ -415,7 +556,7 @@ export default function App() {
             />
             <Stack.Screen
               name="GiveReview"
-              component={GiveReview}
+              component={GuardedGiveReview}
               options={{
                 presentation: "modal",     // FULL SCREEN MODAL
                 headerShown: false,
