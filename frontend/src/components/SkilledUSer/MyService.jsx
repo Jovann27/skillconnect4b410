@@ -754,7 +754,16 @@ const MyService = () => {
                   <div key={request._id} className="request-card">
                     <div className="request-header">
                       <span>Client Request</span>
-                      <span>{new Date(request.time).toLocaleDateString()}</span>
+                      <span>
+                        {request.preferredDate && request.time
+                          ? `${request.preferredDate} at ${request.time}`
+                          : request.preferredDate
+                            ? request.preferredDate
+                            : request.time
+                              ? `Time: ${request.time}`
+                              : 'Date/Time not specified'
+                        }
+                      </span>
                     </div>
                     <div className="request-details">
                       <p><strong>Name:</strong> {request.requester?.firstName} {request.requester?.lastName}</p>

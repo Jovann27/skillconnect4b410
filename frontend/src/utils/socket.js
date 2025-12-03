@@ -56,9 +56,16 @@ const initializeSocket = (token) => {
     _socket.on("connect_error", (error) => {
         console.warn("Socket connection error:", error.message);
         if (error.message === "Authentication error" || error.message === "Token verification failed" || error.message === "Invalid token" || error.message === "Token expired" || error.message === "No token provided" || error.message === "Not a user token" || error.message === "User not found" || error.message === "Account is banned") {
+            console.log("Socket authentication failed, clearing token and disconnecting");
             _socket.disconnect();
             _socket = null;
             localStorage.removeItem("token");
+            // Also clear user data to force re-login
+            localStorage.removeItem("user");
+            localStorage.removeItem("isAuthorized");
+            localStorage.removeItem("tokenType");
+            // Trigger page reload to force re-authentication
+            window.location.reload();
         }
     });
 
@@ -91,7 +98,11 @@ export const updateSocketToken = (token) => {
 
     if (token) {
         localStorage.setItem("token", token);
-        _socket = initializeSocket(token);
+        // Only initialize socket for user tokens, not admin tokens
+        const tokenType = localStorage.getItem("tokenType");
+        if (tokenType === "user") {
+            _socket = initializeSocket(token);
+        }
     } else {
         localStorage.removeItem("token");
         _socket = null;

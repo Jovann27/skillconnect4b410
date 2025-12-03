@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -100,17 +100,29 @@ const AccountStatusGuard = ({ children }) => {
 };
 
 const AppContent = () => {
-  const { isAuthorized, tokenType, authLoaded, user, admin, navigationLoading } = useMainContext();
+  const { isAuthorized, tokenType, authLoaded, user, admin, navigationLoading, setNavigationLoading } = useMainContext();
   const location = useLocation();
   const navigate = useNavigate();
   const navigateWithLoader = useNavigateWithLoader();
   const isAdmin = isAuthorized && tokenType === "admin";
   const isUser = isAuthorized && tokenType === "user";
+  const locationRef = useRef(location.pathname);
 
   // Role-based access helpers
   const userRole = user?.role;
 
 
+
+  // Listen for location changes to show loader on navigation
+  useEffect(() => {
+    if (locationRef.current !== location.pathname) {
+      setNavigationLoading(true);
+      setTimeout(() => {
+        setNavigationLoading(false);
+      }, 100);
+      locationRef.current = location.pathname;
+    }
+  }, [location.pathname, setNavigationLoading]);
 
   // Save last path whenever user navigates to a user route
   useEffect(() => {

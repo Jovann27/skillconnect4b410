@@ -1,12 +1,13 @@
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
-import { Platform, Alert, TouchableOpacity } from "react-native";
+import { Platform, Alert, TouchableOpacity, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { MainProvider, MainContext } from "./contexts/MainContext";
+import { MainProvider, MainContext, useMainContext } from "./contexts/MainContext";
 import Constants from 'expo-constants';
+import Loader from "./components/Loader";
 
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";

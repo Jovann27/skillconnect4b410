@@ -20,6 +20,7 @@ export const MainProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [navigationLoading, setNavigationLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isUserVerified, setIsUserVerified] = useState(false);
@@ -225,6 +226,8 @@ export const MainProvider = ({ children }) => {
     user,
     isLoggedIn,
     loading,
+    navigationLoading,
+    setNavigationLoading,
     notifications,
     unreadCount,
     isUserVerified,

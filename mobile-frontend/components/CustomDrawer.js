@@ -15,6 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { subscribeToUserDataChange } from "../utils/storageEvents";
 import { useMainContext } from "../contexts/MainContext";
 import { getImageUrl } from "../utils/imageUtils";
+import Loader from "./Loader";
+import useNavigationWithLoader from "../utils/useNavigationWithLoader";
 
 const { width } = Dimensions.get("window");
 
@@ -24,7 +26,8 @@ export default function CustomDrawer({ children }) {
   const [userRole, setUserRole] = useState(null);
   const translateX = useRef(new Animated.Value(-width * 0.75)).current;
   const navigation = useNavigation();
-  const { isLoggedIn } = useMainContext();
+  const navigationWithLoader = useNavigationWithLoader();
+  const { isLoggedIn, navigationLoading } = useMainContext();
 
   const fetchUserData = async () => {
     try {
@@ -59,9 +62,9 @@ export default function CustomDrawer({ children }) {
     toggleDrawer();
     if (requiresAuth && !isLoggedIn) {
       await AsyncStorage.setItem("pendingScreen", screen);
-      navigation.navigate("Login");
+      navigationWithLoader.navigate("Login");
     } else {
-      navigation.navigate(screen);
+      navigationWithLoader.navigate(screen);
     }
   };
 
@@ -101,6 +104,12 @@ export default function CustomDrawer({ children }) {
         />
       )}
 
+      {navigationLoading && (
+        <View style={styles.loaderOverlay}>
+          <Loader />
+        </View>
+      )}
+
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* Gradient Header */}
         <LinearGradient
@@ -113,8 +122,8 @@ export default function CustomDrawer({ children }) {
             activeOpacity={0.8}
             onPress={() => {
               toggleDrawer();
-              if (isLoggedIn) navigation.navigate("Profile");
-              else navigation.navigate("Login");
+              if (isLoggedIn) navigationWithLoader.navigate("Profile");
+              else navigationWithLoader.navigate("Login");
             }}
             style={styles.headerContent}
           >
@@ -198,6 +207,13 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.4)",
     zIndex: 999,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1001,
   },
  headerRow: {
   paddingVertical: 25,

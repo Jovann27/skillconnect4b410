@@ -10,7 +10,7 @@ const useNavigateWithLoader = () => {
     setTimeout(() => {
       navigate(to, options);
       setNavigationLoading(false);
-    }, 1000); // 1 second delay
+    }, 100); // Short delay to show loader
   };
 
   return navigateWithLoader;

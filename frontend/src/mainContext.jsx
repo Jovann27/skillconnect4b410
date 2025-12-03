@@ -189,27 +189,32 @@ export const MainProvider = ({ children }) => {
     const storedAdmin = JSON.parse(localStorage.getItem("admin") || "null");
     const isAuth = localStorage.getItem("isAuthorized") === "true";
     const type = localStorage.getItem("tokenType");
+    const token = localStorage.getItem("token");
 
     // For admins: restore from localStorage and fetch fresh data
-    if (storedAdmin && isAuth && type === "admin") {
+    if (storedAdmin && isAuth && type === "admin" && token) {
       setAdmin(storedAdmin);
       setIsAuthorized(true);
       setTokenType("admin");
       setUser(null);
       setAuthLoaded(true);
+      // Update socket token for existing session
+      updateSocketToken(token);
       // Fetch fresh admin data
       fetchProfile();
       return;
     }
 
     // For users: restore from localStorage and fetch fresh data
-    if (storedUser && isAuth && type === "user") {
+    if (storedUser && isAuth && type === "user" && token) {
       setUser(storedUser);
       setIsAuthorized(true);
       setTokenType("user");
       setAdmin(null);
       setIsUserVerified(storedUser.verified || false);
       setAuthLoaded(true);
+      // Update socket token for existing session
+      updateSocketToken(token);
       // Fetch fresh user data
       fetchProfile();
     } else {

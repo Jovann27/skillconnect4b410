@@ -39,7 +39,7 @@ if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 4000;
   const server = http.createServer(app);
 
-  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+  const FRONTEND_URL = process.env.FRONTEND_URL;
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || FRONTEND_URL).split(",").map(s => s.trim());
 
   io = new Server(server, {
@@ -64,6 +64,7 @@ if (process.env.NODE_ENV !== 'production') {
     try {
       const token = socket.handshake.query.token;
       if (!token) {
+        console.log("Socket authentication: No token provided");
         return next(new Error("No token provided"));
       }
 
@@ -72,34 +73,41 @@ if (process.env.NODE_ENV !== 'production') {
       try {
         decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
       } catch (jwtError) {
-        console.error("JWT verification error:", jwtError);
+        console.error("JWT verification error:", jwtError.message);
         if (jwtError.name === 'TokenExpiredError') {
+          console.log("Socket authentication: Token expired");
           return next(new Error("Token expired"));
         } else if (jwtError.name === 'JsonWebTokenError') {
+          console.log("Socket authentication: Invalid token signature");
           return next(new Error("Invalid token"));
         } else {
+          console.log("Socket authentication: Token verification failed:", jwtError.message);
           return next(new Error(jwtError.message || "Token verification failed"));
         }
       }
 
       // Check token type
       if (!decoded || decoded.type !== "user") {
+        console.log("Socket authentication: Not a user token, token type:", decoded?.type);
         return next(new Error("Not a user token"));
       }
 
       // Check if user exists
       const user = await User.findById(decoded.id);
       if (!user) {
+        console.log("Socket authentication: User not found for ID:", decoded.id);
         return next(new Error("User not found"));
       }
 
       // Check if user is banned
       if (user.banned) {
+        console.log("Socket authentication: User is banned:", user._id);
         return next(new Error("Account is banned"));
       }
 
       socket.userId = user._id.toString();
       socket.user = user;
+      console.log("Socket authentication: Success for user:", user._id);
       next();
     } catch (err) {
       console.error("Socket authentication error:", err.message);
